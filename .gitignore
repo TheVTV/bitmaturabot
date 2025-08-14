@@ -1,0 +1,90 @@
+# === ŚRODOWISKO I KONFIGURACJA ===
+# Zmienne środowiskowe (WAŻNE - zawiera klucze API i hasła!)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# === NODE.JS ===
+# Zależności
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+package-lock.json
+
+# === PLIKI TYMCZASOWE I CACHE ===
+# Cache systemu
+.cache/
+.npm/
+.yarn/
+.pnp.*
+
+# Logi
+logs/
+*.log
+lerna-debug.log*
+
+# === PLIKI TESTOWE I DEBUGOWANIE ===
+# Pliki testowe (nie potrzebne w produkcji)
+test-*.js
+debug-*.js
+final-system-test.js
+
+# Dokumenty tymczasowe
+*_STATUS.md
+TEST_*.md
+
+# === DANE I KONFIGURACJA LOKALNA ===
+# Konfiguracja lokalna
+data/server-config.json
+data/users.json
+
+# Przykładowe dane
+przykład_*.txt
+
+# === PLIKI SYSTEMOWE ===
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Linux
+*~
+
+# === IDE I EDYTORY ===
+# Visual Studio Code
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# WebStorm
+.idea/
+
+# === BEZPIECZEŃSTWO ===
+# Klucze i certyfikaty
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+
+# Backupy bazy danych
+*.sql
+database.sql
+
+# === BUILD I DIST ===
+# Pliki zbudowane
+build/
+dist/
+out/
