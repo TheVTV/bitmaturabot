@@ -30,31 +30,21 @@ module.exports = {
     if (message.author.bot) return;
 
     // Sprawdź czy kanał ma włączone blokowanie wiadomości
-    if (message.guild && isChannelBlocked(message.guild.id, message.channel.id)) {
+    if (
+      message.guild &&
+      isChannelBlocked(message.guild.id, message.channel.id)
+    ) {
       // Sprawdź czy wiadomość to komenda (zaczyna się od /)
-      if (!message.content.startsWith('/')) {
+      if (!message.content.startsWith("/")) {
         try {
           await message.delete();
-          console.log(`[BLOCK] Usunięto wiadomość od ${message.author.tag} w kanale ${message.channel.name}: "${message.content}"`);
-          
-          // Wyślij krótką informację do użytkownika (usuwa się automatycznie po 5 sekundach)
-          const warningMessage = await message.channel.send({
-            content: `⚠️ ${message.author}, w tym kanale dozwolone są tylko komendy ze znakiem \`/\`. Twoja wiadomość została usunięta.`
-          });
-          
-          // Usuń ostrzeżenie po 5 sekundach
-          setTimeout(async () => {
-            try {
-              await warningMessage.delete();
-            } catch (error) {
-              // Ignoruj błędy usuwania (wiadomość mogła już zostać usunięta)
-            }
-          }, 5000);
-          
+          console.log(
+            `[BLOCK] Usunięto wiadomość od ${message.author.tag} w kanale ${message.channel.name}: "${message.content}"`
+          );
         } catch (error) {
-          console.error('[BLOCK] Nie udało się usunąć wiadomości:', error);
+          console.error("[BLOCK] Nie udało się usunąć wiadomości:", error);
         }
-        
+
         return; // Zatrzymaj dalsze przetwarzanie
       }
     }

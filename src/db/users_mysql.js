@@ -383,29 +383,32 @@ async function getUsersByGroup(groupNumber) {
     }
 
     const usersInGroup = [];
-    
+
     // Przejdź przez cache i znajdź wszystkich użytkowników z danej grupy
     for (const [key, userData] of usersCache.entries()) {
-      if (userData.group && parseInt(userData.group) === parseInt(groupNumber)) {
+      if (
+        userData.group &&
+        parseInt(userData.group) === parseInt(groupNumber)
+      ) {
         usersInGroup.push({
           email: userData.email,
           fullname: userData.fullname,
           group: userData.group,
-          discordId: userData.discordId
+          discordId: userData.discordId,
         });
       }
     }
-    
+
     // Sortuj alfabetycznie po nazwisku
     usersInGroup.sort((a, b) => {
-      const nameA = (a.fullname || '').toLowerCase();
-      const nameB = (b.fullname || '').toLowerCase();
-      return nameA.localeCompare(nameB, 'pl');
+      const nameA = (a.fullname || "").toLowerCase();
+      const nameB = (b.fullname || "").toLowerCase();
+      return nameA.localeCompare(nameB, "pl");
     });
-    
+
     return usersInGroup;
   } catch (error) {
-    console.error('[DB] Błąd podczas pobierania użytkowników z grupy:', error);
+    console.error("[DB] Błąd podczas pobierania użytkowników z grupy:", error);
     return [];
   }
 }

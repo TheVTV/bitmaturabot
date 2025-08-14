@@ -7,9 +7,9 @@ function setChannelBlocked(guildId, channelId, isBlocked) {
   if (!blockedChannels.has(guildId)) {
     blockedChannels.set(guildId, new Set());
   }
-  
+
   const guildBlocked = blockedChannels.get(guildId);
-  
+
   if (isBlocked) {
     // Dodaj kanał do zablokowanych
     if (guildBlocked.has(channelId)) {
@@ -46,7 +46,9 @@ function clearBlockedChannels(guildId) {
   if (blockedChannels.has(guildId)) {
     const count = blockedChannels.get(guildId).size;
     blockedChannels.delete(guildId);
-    console.log(`[BLOCK] Usunięto ${count} zablokowanych kanałów z gildii ${guildId}`);
+    console.log(
+      `[BLOCK] Usunięto ${count} zablokowanych kanałów z gildii ${guildId}`
+    );
     return count;
   }
   return 0;
@@ -56,14 +58,14 @@ function clearBlockedChannels(guildId) {
 function getBlockingStats() {
   let totalGuilds = blockedChannels.size;
   let totalChannels = 0;
-  
+
   for (const [guildId, channels] of blockedChannels) {
     totalChannels += channels.size;
   }
-  
+
   return {
     guilds: totalGuilds,
-    channels: totalChannels
+    channels: totalChannels,
   };
 }
 
@@ -72,5 +74,5 @@ module.exports = {
   isChannelBlocked,
   getBlockedChannels,
   clearBlockedChannels,
-  getBlockingStats
+  getBlockingStats,
 };
