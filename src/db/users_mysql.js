@@ -235,8 +235,6 @@ async function importUsersFromText(textContent) {
     errors: [],
   };
 
-  const connection = await getConnection();
-
   try {
     for (const line of lines) {
       try {
@@ -259,19 +257,14 @@ async function importUsersFromText(textContent) {
           continue;
         }
 
-        // Sprawdź czy użytkownik już istnieje
-        const [existingRows] = await connection.execute(
-          "SELECT id FROM users WHERE email = ?",
-          [email.toLowerCase().trim()]
-        );
+        // Sprawdź czy użytkownik już istnieje (używając cache)
+        const existingUser = await getUserByEmail(email);
+        const userExists = existingUser !== null;
 
-        // Wstaw lub zaktualizuj
-        await connection.execute(
-          "INSERT INTO users (email, group_number, fullname) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE group_number = VALUES(group_number), fullname = VALUES(fullname)",
-          [email.toLowerCase().trim(), String(groupNumber).trim(), fullname]
-        );
+        // Użyj funkcji addUser, która obsługuje szyfrowanie i nową strukturę
+        await addUser(email, groupNumber, fullname, null);
 
-        if (existingRows.length > 0) {
+        if (userExists) {
           results.updated++;
         } else {
           results.added++;
@@ -283,8 +276,8 @@ async function importUsersFromText(textContent) {
 
     // Odśwież cache po wszystkich operacjach
     await loadUsers();
-  } finally {
-    connection.release();
+  } catch (error) {
+    results.errors.push(`Ogólny błąd importu: ${error.message}`);
   }
 
   return results;

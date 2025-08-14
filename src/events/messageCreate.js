@@ -1,5 +1,5 @@
 const { Events, PermissionsBitField } = require("discord.js");
-const { hasPending, takePending } = require("../state/pending");
+const { hasPending, takePending, getPendingGuildId } = require("../state/pending");
 const {
   getGroupByEmail,
   getFullnameByEmail,
@@ -33,6 +33,15 @@ module.exports = {
       message.channel.name.startsWith("Konfiguracja -")
     ) {
       await handleConfigurationMessage(message, client);
+      return;
+    }
+
+    // Obsługa importu użytkowników w prywatnych wątkach
+    if (
+      message.channel.isThread() &&
+      message.channel.name.startsWith("📚 Import uczniów -")
+    ) {
+      await handleUserImportMessage(message, client);
       return;
     }
 
@@ -262,7 +271,11 @@ async function handleRegistrationMessage(message, client) {
     }
 
     // Usuń oczekiwanie dopiero po potwierdzeniu, że email istnieje
-    const guildId = takePending(userId);
+    const pendingData = takePending(userId);
+    if (!pendingData) return;
+    
+    // Wyciągnij guildId z danych pending
+    const guildId = typeof pendingData === 'string' ? pendingData : pendingData.guildId;
     if (!guildId) return;
 
     const guild = await client.guilds.fetch(guildId);
@@ -331,5 +344,87 @@ async function handleRegistrationMessage(message, client) {
         "Wystąpił błąd podczas nadawania ról. Skontaktuj się z administracją."
       );
     } catch {}
+  }
+}
+
+// Obsługa importu użytkowników
+async function handleUserImportMessage(message, client) {
+  try {
+    if (message.attachments.size === 0) {
+      await message.channel.send(
+        "❌ Nie znaleziono załącznika. Proszę załączyć plik .txt z danymi uczniów.\n\n" +
+        "**Format pliku:**\n" +
+        "```\n" +
+        "Jan Kowalski;jan.kowalski@email.com;1\n" +
+        "Anna Nowak;anna.nowak@email.com;2\n" +
+        "```\n" +
+        "Każda linia: `Imię Nazwisko;email@domena.com;numer_grupy`"
+      );
+      return;
+    }
+
+    const attachment = message.attachments.first();
+    if (!attachment.name.endsWith('.txt')) {
+      await message.channel.send(
+        "❌ Nieprawidłowy format pliku. Proszę załączyć plik .txt."
+      );
+      return;
+    }
+
+    // Pobierz zawartość pliku
+    const response = await fetch(attachment.url);
+    const fileContent = await response.text();
+
+    if (!fileContent.trim()) {
+      await message.channel.send("❌ Plik jest pusty.");
+      return;
+    }
+
+    await message.channel.send(`📊 Przetwarzam plik... To może chwilę potrwać.`);
+
+    // Użyj istniejącej funkcji do importu
+    const results = await importUsersFromText(fileContent);
+
+    // Wyślij podsumowanie
+    let summary = `✅ Import zakończony!\n\n`;
+    summary += `📈 **Podsumowanie:**\n`;
+    summary += `• Przetworzono: ${results.total} linii\n`;
+    summary += `• Dodano nowych: ${results.added} użytkowników\n`;
+    summary += `• Zaktualizowano: ${results.updated} użytkowników\n`;
+    
+    if (results.errors.length > 0) {
+      summary += `• Błędy: ${results.errors.length}\n\n`;
+      summary += `**Szczegóły błędów:**\n`;
+      results.errors.slice(0, 10).forEach((error, index) => {
+        summary += `${index + 1}. ${error}\n`;
+      });
+      
+      if (results.errors.length > 10) {
+        summary += `... i ${results.errors.length - 10} więcej błędów\n`;
+      }
+    }
+
+    // Dodaj informacje o formacie, jeśli były błędy
+    if (results.errors.length > 0) {
+      summary += `\n**Przypomnienie o formacie:**\n`;
+      summary += `Każda linia powinna zawierać: \`Imię Nazwisko;email@domena.com;numer_grupy\``;
+    }
+
+    await message.channel.send(summary);
+    
+    // Zamknij wątek po 60 sekundach
+    setTimeout(async () => {
+      try {
+        await message.channel.send("🔒 Zamykam wątek importu...");
+        await message.channel.setLocked(true);
+        await message.channel.setArchived(true);
+      } catch (error) {
+        console.error('Błąd podczas zamykania wątku importu:', error);
+      }
+    }, 60000);
+
+  } catch (error) {
+    console.error('Błąd podczas importu użytkowników:', error);
+    await message.channel.send("❌ Wystąpił błąd podczas importu użytkowników. Sprawdź format pliku i spróbuj ponownie.");
   }
 }
