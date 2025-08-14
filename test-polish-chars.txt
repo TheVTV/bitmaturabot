@@ -1,0 +1,4 @@
+Mikołaj Pakuła;mikolaj.pakula2008@gmail.com;10
+Józef Wójcik;jozef.wojcik@example.com;5
+Anna Świątkowska;anna.swiatkowska@example.com;3
+Paweł Żółć;pawel.zolc@example.com;7

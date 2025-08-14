@@ -1,5 +1,9 @@
 const { Events, PermissionsBitField } = require("discord.js");
-const { hasPending, takePending, getPendingGuildId } = require("../state/pending");
+const {
+  hasPending,
+  takePending,
+  getPendingGuildId,
+} = require("../state/pending");
 const {
   getGroupByEmail,
   getFullnameByEmail,
@@ -273,9 +277,10 @@ async function handleRegistrationMessage(message, client) {
     // Usuń oczekiwanie dopiero po potwierdzeniu, że email istnieje
     const pendingData = takePending(userId);
     if (!pendingData) return;
-    
+
     // Wyciągnij guildId z danych pending
-    const guildId = typeof pendingData === 'string' ? pendingData : pendingData.guildId;
+    const guildId =
+      typeof pendingData === "string" ? pendingData : pendingData.guildId;
     if (!guildId) return;
 
     const guild = await client.guilds.fetch(guildId);
@@ -353,18 +358,19 @@ async function handleUserImportMessage(message, client) {
     if (message.attachments.size === 0) {
       await message.channel.send(
         "❌ Nie znaleziono załącznika. Proszę załączyć plik .txt z danymi uczniów.\n\n" +
-        "**Format pliku:**\n" +
-        "```\n" +
-        "Jan Kowalski;jan.kowalski@email.com;1\n" +
-        "Anna Nowak;anna.nowak@email.com;2\n" +
-        "```\n" +
-        "Każda linia: `Imię Nazwisko;email@domena.com;numer_grupy`"
+          "**Format pliku:**\n" +
+          "```\n" +
+          "Jan Kowalski;jan.kowalski@email.com;1\n" +
+          "Anna Nowak;anna.nowak@email.com;2\n" +
+          "```\n" +
+          "Każda linia: `Imię Nazwisko;email@domena.com;numer_grupy`\n\n" +
+          "💡 **Wskazówka**: Jeśli używasz polskich znaków, zapisz plik w kodowaniu UTF-8."
       );
       return;
     }
 
     const attachment = message.attachments.first();
-    if (!attachment.name.endsWith('.txt')) {
+    if (!attachment.name.endsWith(".txt")) {
       await message.channel.send(
         "❌ Nieprawidłowy format pliku. Proszę załączyć plik .txt."
       );
@@ -373,14 +379,57 @@ async function handleUserImportMessage(message, client) {
 
     // Pobierz zawartość pliku
     const response = await fetch(attachment.url);
-    const fileContent = await response.text();
+
+    // Pobierz dane jako buffer, żeby móc sprawdzić kodowanie
+    const buffer = await response.arrayBuffer();
+    const uint8Array = new Uint8Array(buffer);
+
+    // Spróbuj różnych kodowań
+    let fileContent;
+    let detectedEncoding = "utf-8";
+
+    try {
+      // Najpierw spróbuj UTF-8
+      fileContent = new TextDecoder("utf-8", { fatal: true }).decode(
+        uint8Array
+      );
+    } catch (error) {
+      try {
+        // Jeśli UTF-8 nie działa, spróbuj Windows-1250 (polskie znaki)
+        fileContent = new TextDecoder("windows-1250").decode(uint8Array);
+        detectedEncoding = "windows-1250";
+        await message.channel.send(
+          "📝 Wykryto kodowanie Windows-1250, konwertuję..."
+        );
+      } catch (error2) {
+        try {
+          // Ostatnia próba - ISO-8859-2 (Latin-2)
+          fileContent = new TextDecoder("iso-8859-2").decode(uint8Array);
+          detectedEncoding = "iso-8859-2";
+          await message.channel.send(
+            "📝 Wykryto kodowanie ISO-8859-2, konwertuję..."
+          );
+        } catch (error3) {
+          // Fallback - użyj UTF-8 z ignorowaniem błędów
+          fileContent = new TextDecoder("utf-8", { fatal: false }).decode(
+            uint8Array
+          );
+          detectedEncoding = "utf-8 (z błędami)";
+          await message.channel.send(
+            "⚠️ Problemy z kodowaniem znaków - mogą wystąpić zniekształcenia."
+          );
+        }
+      }
+    }
 
     if (!fileContent.trim()) {
       await message.channel.send("❌ Plik jest pusty.");
       return;
     }
 
-    await message.channel.send(`📊 Przetwarzam plik... To może chwilę potrwać.`);
+    await message.channel.send(
+      `📊 Przetwarzam plik... To może chwilę potrwać.`
+    );
 
     // Użyj istniejącej funkcji do importu
     const results = await importUsersFromText(fileContent);
@@ -391,14 +440,15 @@ async function handleUserImportMessage(message, client) {
     summary += `• Przetworzono: ${results.total} linii\n`;
     summary += `• Dodano nowych: ${results.added} użytkowników\n`;
     summary += `• Zaktualizowano: ${results.updated} użytkowników\n`;
-    
+    summary += `• Kodowanie pliku: ${detectedEncoding}\n`;
+
     if (results.errors.length > 0) {
       summary += `• Błędy: ${results.errors.length}\n\n`;
       summary += `**Szczegóły błędów:**\n`;
       results.errors.slice(0, 10).forEach((error, index) => {
         summary += `${index + 1}. ${error}\n`;
       });
-      
+
       if (results.errors.length > 10) {
         summary += `... i ${results.errors.length - 10} więcej błędów\n`;
       }
@@ -411,7 +461,7 @@ async function handleUserImportMessage(message, client) {
     }
 
     await message.channel.send(summary);
-    
+
     // Zamknij wątek po 60 sekundach
     setTimeout(async () => {
       try {
@@ -419,12 +469,13 @@ async function handleUserImportMessage(message, client) {
         await message.channel.setLocked(true);
         await message.channel.setArchived(true);
       } catch (error) {
-        console.error('Błąd podczas zamykania wątku importu:', error);
+        console.error("Błąd podczas zamykania wątku importu:", error);
       }
     }, 60000);
-
   } catch (error) {
-    console.error('Błąd podczas importu użytkowników:', error);
-    await message.channel.send("❌ Wystąpił błąd podczas importu użytkowników. Sprawdź format pliku i spróbuj ponownie.");
+    console.error("Błąd podczas importu użytkowników:", error);
+    await message.channel.send(
+      "❌ Wystąpił błąd podczas importu użytkowników. Sprawdź format pliku i spróbuj ponownie."
+    );
   }
 }
