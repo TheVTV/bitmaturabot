@@ -374,6 +374,42 @@ async function getUserByDiscordId(discordId) {
   return null;
 }
 
+// Pobierz wszystkich użytkowników z określonej grupy
+async function getUsersByGroup(groupNumber) {
+  try {
+    // Odśwież cache jeśli jest stary
+    if (Date.now() - lastCacheUpdate > CACHE_TTL) {
+      await loadUsers();
+    }
+
+    const usersInGroup = [];
+    
+    // Przejdź przez cache i znajdź wszystkich użytkowników z danej grupy
+    for (const [key, userData] of usersCache.entries()) {
+      if (userData.group && parseInt(userData.group) === parseInt(groupNumber)) {
+        usersInGroup.push({
+          email: userData.email,
+          fullname: userData.fullname,
+          group: userData.group,
+          discordId: userData.discordId
+        });
+      }
+    }
+    
+    // Sortuj alfabetycznie po nazwisku
+    usersInGroup.sort((a, b) => {
+      const nameA = (a.fullname || '').toLowerCase();
+      const nameB = (b.fullname || '').toLowerCase();
+      return nameA.localeCompare(nameB, 'pl');
+    });
+    
+    return usersInGroup;
+  } catch (error) {
+    console.error('[DB] Błąd podczas pobierania użytkowników z grupy:', error);
+    return [];
+  }
+}
+
 module.exports = {
   getGroupByEmail,
   getFullnameByEmail,
@@ -384,4 +420,5 @@ module.exports = {
   getUserCount,
   updateUserDiscordId,
   getUserByDiscordId,
+  getUsersByGroup,
 };
