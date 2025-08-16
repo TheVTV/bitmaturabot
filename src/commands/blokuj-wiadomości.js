@@ -99,7 +99,8 @@ module.exports = {
         .setName("lista")
         .setDescription("Pokaż listę zablokowanych kanałów")
     )
-    .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages),
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages)
+    .setContexts([0]),
 
   async execute(interaction) {
     try {

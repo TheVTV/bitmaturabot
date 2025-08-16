@@ -12,7 +12,8 @@ module.exports = {
     .setDescription(
       "Konfiguruj role dla grup i uczniów (tylko właściciel serwera)"
     )
-    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    .setContexts([0]),
 
   async execute(interaction) {
     // Sprawdź czy użytkownik to właściciel serwera

@@ -13,7 +13,8 @@ module.exports = {
         .setMinValue(1)
         .setMaxValue(999)
     )
-    .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles),
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles)
+    .setContexts([0]),
 
   async execute(interaction) {
     try {

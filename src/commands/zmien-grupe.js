@@ -10,7 +10,8 @@ module.exports = {
   data: new SlashCommandBuilder()
     .setName("zmień-grupę")
     .setDescription("Zmień grupę użytkownika - tylko dla administratorów")
-    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    .setContexts([0]),
   
   async execute(interaction) {
     // Sprawdź czy użytkownik ma uprawnienia administratora

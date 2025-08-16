@@ -5,7 +5,8 @@ module.exports = {
   data: new SlashCommandBuilder()
     .setName("dodaj-uczniów")
     .setDescription("Dodaj uczniów z pliku .txt (tylko właściciel serwera)")
-    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    .setContexts([0]),
   async execute(interaction) {
     // Sprawdź czy użytkownik to właściciel serwera
     if (interaction.user.id !== interaction.guild.ownerId) {
