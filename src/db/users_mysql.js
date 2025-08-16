@@ -358,6 +358,62 @@ async function updateUserDiscordId(email, discordId) {
   }
 }
 
+async function updateUserGroup(email, newGroupNumber) {
+  try {
+    const connection = await getConnection();
+
+    try {
+      // Sprawdź czy mamy nowe kolumny zaszyfrowane
+      const [columns] = await connection.execute(`
+        SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS 
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users'
+      `);
+
+      const columnNames = columns.map((col) => col.COLUMN_NAME);
+      const hasEncryptedColumns = columnNames.includes("email_encrypted");
+
+      let result;
+
+      if (hasEncryptedColumns) {
+        // Nowy sposób - z szyfrowaniem
+        const emailSearchHash = generateSearchHash(email.trim().toLowerCase());
+
+        [result] = await connection.execute(
+          "UPDATE users SET group_number = ? WHERE email_search_hash = ?",
+          [String(newGroupNumber).trim(), emailSearchHash]
+        );
+      } else {
+        // Stary sposób - bez szyfrowania
+        [result] = await connection.execute(
+          "UPDATE users SET group_number = ? WHERE email = ?",
+          [String(newGroupNumber).trim(), email.trim().toLowerCase()]
+        );
+      }
+
+      if (result.affectedRows > 0) {
+        console.log(
+          `[DB] Zaktualizowano grupę dla ${email}: ${newGroupNumber}${
+            hasEncryptedColumns ? " (zaszyfrowane)" : ""
+          }`
+        );
+        // Odśwież cache
+        await loadUsers();
+        return true;
+      } else {
+        console.warn(
+          `[DB] Nie znaleziono użytkownika do aktualizacji grupy: ${email}`
+        );
+        return false;
+      }
+    } finally {
+      connection.release();
+    }
+  } catch (err) {
+    console.error("[DB] Błąd aktualizacji grupy użytkownika:", err.message);
+    return false;
+  }
+}
+
 async function getUserByDiscordId(discordId) {
   // Odśwież cache jeśli jest stary
   if (Date.now() - lastCacheUpdate > CACHE_TTL) {
@@ -424,4 +480,5 @@ module.exports = {
   updateUserDiscordId,
   getUserByDiscordId,
   getUsersByGroup,
+  updateUserGroup,
 };

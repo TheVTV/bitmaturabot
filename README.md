@@ -76,6 +76,7 @@ Bot potrzebuje następujących uprawnień:
 - `/ping` - Test połączenia z botem
 - `/rejestruj` - Rozpoczęcie procesu rejestracji
 - `/konfiguracja` - Ustawienie ról serwera (tylko właściciel)
+- `/zmień-grupę` - Zmiana grupy użytkownika (tylko administratorzy)
 
 ## 🔐 Bezpieczeństwo
 
