@@ -4,22 +4,28 @@ const {
   ChannelType,
   MessageFlags,
 } = require("discord.js");
-const { setServerConfig, getServerConfig } = require("../db/config_mysql");
+const { setServerConfig, getServerConfig, getAdminRoleName } = require("../db/config_mysql");
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName("konfiguracja")
     .setDescription(
-      "Konfiguruj role dla grup i uczniów (tylko właściciel serwera)"
+      "Konfiguruj role dla grup i uczniów (wymaga roli administratora)"
     )
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .setContexts([0]),
 
   async execute(interaction) {
-    // Sprawdź czy użytkownik to właściciel serwera
-    if (interaction.user.id !== interaction.guild.ownerId) {
+    // Sprawdź czy użytkownik ma rolę administratora z konfiguracji lub jest właścicielem serwera
+    const adminRoleName = await getAdminRoleName(interaction.guild.id);
+    const hasAdminRole = interaction.member.roles.cache.some(
+      (role) => role.name === adminRoleName
+    );
+    const isOwner = interaction.user.id === interaction.guild.ownerId;
+
+    if (!hasAdminRole && !isOwner) {
       return interaction.reply({
-        content: "Ta komenda jest dostępna tylko dla właściciela serwera.",
+        content: `❌ Ta komenda wymaga roli administratora (**${adminRoleName}**) lub uprawnień właściciela serwera.`,
         flags: MessageFlags.Ephemeral,
       });
     }

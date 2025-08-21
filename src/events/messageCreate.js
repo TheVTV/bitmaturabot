@@ -32,6 +32,28 @@ module.exports = {
   async execute(message, client) {
     if (message.author.bot) return;
 
+    // Obsługa frazy "kto pytał" - reaguj na dowolnym kanale
+    const content = message.content.toLowerCase().trim();
+    const ktoQualifiedPhrases = [
+      "kto pytał",
+      "kto pytał?",
+      "kto pytal",
+      "kto pytal?",
+      "kto pyta",
+      "kto pyta?",
+      "kto pytał.",
+      "kto pytal."
+    ];
+
+    if (ktoQualifiedPhrases.some(phrase => content === phrase || content.includes(phrase))) {
+      try {
+        await message.channel.send("Siema, ja pytałem");
+        console.log(`[KTO PYTAŁ] Odpowiedziano na wiadomość od ${message.author.tag} w kanale ${message.channel.name}`);
+      } catch (error) {
+        console.error("[KTO PYTAŁ] Błąd wysyłania odpowiedzi:", error);
+      }
+    }
+
     // Sprawdź czy kanał ma włączone blokowanie wiadomości
     if (
       message.guild &&
@@ -143,13 +165,58 @@ async function handleConfigurationMessage(message, client) {
 
       config.studentRole = roleMention.name;
 
+      // Przejdź do kroku roli nauczyciela
+      updateConfiguration(userId, { step: "teacher_role" });
+
+      await message.reply(
+        `✅ **Rola ucznia zapisana:** ${roleMention.name}\n\n` +
+          `🎓 **Teraz podaj rolę dla nauczycieli.**\n` +
+          `Napisz wiadomość z pingiem roli dla nauczycieli.`
+      );
+    } else if (config.step === "teacher_role") {
+      const roleMention = message.mentions.roles.first();
+      if (!roleMention) {
+        await message.reply(
+          "Nie znaleziono roli. Upewnij się, że pingujesz rolę dla nauczycieli."
+        );
+        return;
+      }
+
+      config.teacherRole = roleMention.name;
+
+      // Przejdź do kroku roli administracyjnej
+      updateConfiguration(userId, { step: "admin_role" });
+
+      await message.reply(
+        `✅ **Rola nauczyciela zapisana:** ${roleMention.name}\n\n` +
+          `👑 **Teraz podaj rolę administracyjną.**\n` +
+          `Napisz wiadomość z pingiem roli dla administratorów.`
+      );
+    } else if (config.step === "admin_role") {
+      const roleMention = message.mentions.roles.first();
+      if (!roleMention) {
+        await message.reply(
+          "Nie znaleziono roli. Upewnij się, że pingujesz rolę administracyjną."
+        );
+        return;
+      }
+
+      config.adminRole = roleMention.name;
+
+      // Przejdź do kroku importu użytkowników
+      updateConfiguration(userId, { step: "import_users" });
+
+      config.adminRole = roleMention.name;
+
       // Przejdź do kroku importu użytkowników
       updateConfiguration(userId, { step: "import_users" });
 
       await message.reply(
         `✅ **Konfiguracja ról zakończona!**\n\n` +
-          `**Rola ucznia:** ${roleMention.name}\n` +
-          `**Role grup:**\n` +
+          `**📚 Rola ucznia:** ${config.studentRole}\n` +
+          `**🎓 Rola nauczyciela:** ${config.teacherRole}\n` +
+          `**👑 Rola administracyjna:** ${config.adminRole}\n\n` +
+          `**🏫 Role grup:**\n` +
           (() => {
             let roles = "";
             for (let i = 1; i <= config.groupCount; i++) {
@@ -174,6 +241,8 @@ async function handleConfigurationMessage(message, client) {
         setServerConfig(config.guildId, {
           groupRoles: finalConfig.groupRoles,
           studentRole: finalConfig.studentRole,
+          teacherRole: finalConfig.teacherRole,
+          adminRole: finalConfig.adminRole,
           configuredBy: userId,
           configuredAt: new Date().toISOString(),
         });
@@ -227,6 +296,8 @@ async function handleConfigurationMessage(message, client) {
           setServerConfig(config.guildId, {
             groupRoles: finalConfig.groupRoles,
             studentRole: finalConfig.studentRole,
+            teacherRole: finalConfig.teacherRole,
+            adminRole: finalConfig.adminRole,
             configuredBy: userId,
             configuredAt: new Date().toISOString(),
           });

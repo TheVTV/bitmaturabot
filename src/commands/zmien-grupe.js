@@ -5,19 +5,26 @@ const {
   PermissionFlagsBits,
 } = require("discord.js");
 const { addPending } = require("../state/pending");
+const { getAdminRoleName } = require("../db/config_mysql");
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName("zmień-grupę")
-    .setDescription("Zmień grupę użytkownika - tylko dla administratorów")
+    .setDescription("Zmień grupę użytkownika (wymaga roli administratora)")
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .setContexts([0]),
   
   async execute(interaction) {
-    // Sprawdź czy użytkownik ma uprawnienia administratora
-    if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+    // Sprawdź czy użytkownik ma rolę administratora z konfiguracji lub uprawnienia Discord Administrator
+    const adminRoleName = await getAdminRoleName(interaction.guild.id);
+    const hasAdminRole = interaction.member.roles.cache.some(
+      (role) => role.name === adminRoleName
+    );
+    const hasDiscordAdminPermissions = interaction.member.permissions.has(PermissionFlagsBits.Administrator);
+
+    if (!hasAdminRole && !hasDiscordAdminPermissions) {
       return interaction.reply({
-        content: "❌ Nie masz uprawnień do używania tej komendy. Wymagane uprawnienia administratora.",
+        content: `❌ Ta komenda wymaga roli administratora (**${adminRoleName}**) lub uprawnień Discord Administrator.`,
         flags: MessageFlags.Ephemeral,
       });
     }
