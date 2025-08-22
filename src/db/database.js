@@ -164,6 +164,43 @@ async function createTables() {
       // Kolumna już istnieje
     }
 
+    // Tabela punktów użytkowników
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS user_points (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        discord_id VARCHAR(255) NOT NULL,
+        guild_id VARCHAR(255) NOT NULL,
+        points INT DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY unique_user_guild (discord_id, guild_id),
+        INDEX idx_points (points DESC)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+
+    // Migracja: sprawdź czy trzeba usunąć stary UNIQUE constraint
+    try {
+      const [constraints] = await connection.execute(`
+        SELECT CONSTRAINT_NAME 
+        FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS 
+        WHERE TABLE_SCHEMA = DATABASE() 
+        AND TABLE_NAME = 'user_points' 
+        AND CONSTRAINT_TYPE = 'UNIQUE' 
+        AND CONSTRAINT_NAME != 'unique_user_guild'
+      `);
+
+      if (constraints.length > 0) {
+        for (const constraint of constraints) {
+          await connection.execute(`
+            ALTER TABLE user_points DROP INDEX ${constraint.CONSTRAINT_NAME}
+          `);
+          console.log(`[DB] Usunięto stary constraint: ${constraint.CONSTRAINT_NAME}`);
+        }
+      }
+    } catch (error) {
+      // Ignoruj błędy migracji - tabela może być już poprawna
+    }
+
     console.log("[DB] Tabele sprawdzone/utworzone");
   } catch (error) {
     console.error("[DB] Błąd tworzenia tabel:", error.message);

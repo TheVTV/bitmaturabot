@@ -14,6 +14,7 @@ const {
   getUserByEmail,
   updateUserGroup,
 } = require("../db/users_mysql");
+const { addUserPoints, setUserPoints } = require("../db/points");
 const {
   getGroupRoleName,
   getStudentRoleName,
@@ -414,6 +415,15 @@ async function handleRegistrationMessage(message, client) {
 
     // Zapisz Discord ID użytkownika w bazie danych
     await updateUserDiscordId(email, userId);
+
+    // Dodaj użytkownika do tabeli punktów z 0 punktami
+    try {
+      await setUserPoints(userId, guild.id, 0);
+      console.log(`[POINTS] Dodano użytkownika ${userId} do tabeli punktów z 0 punktami`);
+    } catch (pointsError) {
+      console.warn(`[POINTS] Nie udało się dodać użytkownika ${userId} do tabeli punktów:`, pointsError.message);
+      // Nie przerywamy rejestracji jeśli punkty się nie dodały
+    }
 
     // Zmień pseudonim na imię i nazwisko, jeśli dostępne
     if (fullname) {
