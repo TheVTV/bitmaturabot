@@ -413,6 +413,91 @@ async function getUsersByGroup(groupNumber) {
   }
 }
 
+// Usuń użytkownika na podstawie Discord ID
+async function removeUserByDiscordId(discordId) {
+  try {
+    const connection = await getConnection();
+
+    try {
+      // Sprawdź czy mamy nowe kolumny zaszyfrowane
+      const [columns] = await connection.execute(`
+        SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS 
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users'
+      `);
+
+      const columnNames = columns.map((col) => col.COLUMN_NAME);
+      const hasEncryptedColumns = columnNames.includes("discord_id_encrypted");
+
+      let deletedRows = 0;
+
+      if (hasEncryptedColumns) {
+        // Nowy sposób - z szyfrowaniem
+        // Znajdź użytkownika po zaszyfrowanym Discord ID
+        const [users] = await connection.execute(
+          "SELECT id, discord_id_encrypted FROM users WHERE discord_id_encrypted IS NOT NULL"
+        );
+
+        let userIdToDelete = null;
+        for (const user of users) {
+          try {
+            const decryptedDiscordId = decryptData(user.discord_id_encrypted);
+            if (decryptedDiscordId === discordId.toString()) {
+              userIdToDelete = user.id;
+              break;
+            }
+          } catch (decryptError) {
+            // Ignoruj błędy deszyfrowania - może to być stary rekord
+            continue;
+          }
+        }
+
+        if (userIdToDelete) {
+          const [result] = await connection.execute(
+            "DELETE FROM users WHERE id = ?",
+            [userIdToDelete]
+          );
+          deletedRows = result.affectedRows;
+        }
+
+        // Sprawdź także stare kolumny dla wstecznej kompatybilności
+        if (deletedRows === 0 && columnNames.includes("discord_id")) {
+          const [result] = await connection.execute(
+            "DELETE FROM users WHERE discord_id = ?",
+            [discordId.toString()]
+          );
+          deletedRows = result.affectedRows;
+        }
+      } else {
+        // Stary sposób - bez szyfrowania
+        const [result] = await connection.execute(
+          "DELETE FROM users WHERE discord_id = ?",
+          [discordId.toString()]
+        );
+        deletedRows = result.affectedRows;
+      }
+
+      if (deletedRows > 0) {
+        console.log(`[DB] Usunięto użytkownika z Discord ID: ${discordId}`);
+
+        // Odśwież cache po usunięciu
+        await loadUsers();
+
+        return true;
+      } else {
+        console.log(
+          `[DB] Nie znaleziono użytkownika z Discord ID: ${discordId}`
+        );
+        return false;
+      }
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error("[DB] Błąd podczas usuwania użytkownika:", error);
+    return false;
+  }
+}
+
 module.exports = {
   getGroupByEmail,
   getFullnameByEmail,
@@ -424,4 +509,5 @@ module.exports = {
   updateUserDiscordId,
   getUserByDiscordId,
   getUsersByGroup,
+  removeUserByDiscordId,
 };
