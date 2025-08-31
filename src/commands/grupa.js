@@ -1,10 +1,11 @@
 const { SlashCommandBuilder, PermissionFlagsBits } = require("discord.js");
 const { getUsersByGroup } = require("../db/users_mysql");
+const { getAdminRoleName, getTeacherRoleName } = require("../db/config_mysql");
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName("grupa")
-    .setDescription("Wyświetl listę uczniów z wybranej grupy")
+    .setDescription("Wyświetl listę uczniów z wybranej grupy (dla nauczycieli i administratorów)")
     .addIntegerOption((option) =>
       option
         .setName("numer")
@@ -13,9 +14,29 @@ module.exports = {
         .setMinValue(1)
         .setMaxValue(999)
     )
-    .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles),
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles)
+    .setContexts([0]),
 
   async execute(interaction) {
+    // Sprawdź czy użytkownik ma rolę administratora, nauczyciela lub uprawnienia ManageRoles
+    const adminRoleName = await getAdminRoleName(interaction.guild.id);
+    const teacherRoleName = await getTeacherRoleName(interaction.guild.id);
+    
+    const hasAdminRole = interaction.member.roles.cache.some(
+      (role) => role.name === adminRoleName
+    );
+    const hasTeacherRole = interaction.member.roles.cache.some(
+      (role) => role.name === teacherRoleName
+    );
+    const hasManageRolesPermissions = interaction.member.permissions.has(PermissionFlagsBits.ManageRoles);
+
+    if (!hasAdminRole && !hasTeacherRole && !hasManageRolesPermissions) {
+      return interaction.reply({
+        content: `❌ Ta komenda wymaga roli administratora (**${adminRoleName}**), nauczyciela (**${teacherRoleName}**) lub uprawnień Discord ManageRoles.`,
+        flags: 64, // ephemeral
+      });
+    }
+
     try {
       const groupNumber = interaction.options.getInteger("numer");
 

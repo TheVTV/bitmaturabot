@@ -8,7 +8,8 @@ const { addPending } = require("../state/pending");
 module.exports = {
   data: new SlashCommandBuilder()
     .setName("rejestruj")
-    .setDescription("Rozpocznij proces rejestracji i weryfikacji e-maila"),
+    .setDescription("Rozpocznij proces rejestracji i weryfikacji e-maila")
+    .setContexts([0]),
   async execute(interaction) {
     // Sprawdź czy użytkownik już ma rolę "uczeń"
     const hasStudentRole = interaction.member.roles.cache.some(

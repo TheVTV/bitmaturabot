@@ -10,45 +10,45 @@ const {
 
 module.exports = {
   data: new SlashCommandBuilder()
-    .setName("blokuj-wiadomości")
+    .setName("blokuj-wiadomosci")
     .setDescription(
       "Blokuje wysyłanie zwykłych wiadomości w wybranych kanałach (tylko komendy są dozwolone)"
     )
     .addSubcommand((subcommand) =>
       subcommand
-        .setName("włącz")
+        .setName("wlacz")
         .setDescription("Włącz blokowanie wiadomości w wybranych kanałach")
         .addChannelOption((option) =>
           option
-            .setName("kanał1")
+            .setName("kanal1")
             .setDescription("Pierwszy kanał do zablokowania")
             .setRequired(true)
             .addChannelTypes(ChannelType.GuildText)
         )
         .addChannelOption((option) =>
           option
-            .setName("kanał2")
+            .setName("kanal2")
             .setDescription("Drugi kanał do zablokowania (opcjonalny)")
             .setRequired(false)
             .addChannelTypes(ChannelType.GuildText)
         )
         .addChannelOption((option) =>
           option
-            .setName("kanał3")
+            .setName("kanal3")
             .setDescription("Trzeci kanał do zablokowania (opcjonalny)")
             .setRequired(false)
             .addChannelTypes(ChannelType.GuildText)
         )
         .addChannelOption((option) =>
           option
-            .setName("kanał4")
+            .setName("kanal4")
             .setDescription("Czwarty kanał do zablokowania (opcjonalny)")
             .setRequired(false)
             .addChannelTypes(ChannelType.GuildText)
         )
         .addChannelOption((option) =>
           option
-            .setName("kanał5")
+            .setName("kanal5")
             .setDescription("Piąty kanał do zablokowania (opcjonalny)")
             .setRequired(false)
             .addChannelTypes(ChannelType.GuildText)
@@ -56,39 +56,39 @@ module.exports = {
     )
     .addSubcommand((subcommand) =>
       subcommand
-        .setName("wyłącz")
+        .setName("wylacz")
         .setDescription("Wyłącz blokowanie wiadomości w wybranych kanałach")
         .addChannelOption((option) =>
           option
-            .setName("kanał1")
+            .setName("kanal1")
             .setDescription("Pierwszy kanał do odblokowania")
             .setRequired(true)
             .addChannelTypes(ChannelType.GuildText)
         )
         .addChannelOption((option) =>
           option
-            .setName("kanał2")
+            .setName("kanal2")
             .setDescription("Drugi kanał do odblokowania (opcjonalny)")
             .setRequired(false)
             .addChannelTypes(ChannelType.GuildText)
         )
         .addChannelOption((option) =>
           option
-            .setName("kanał3")
+            .setName("kanal3")
             .setDescription("Trzeci kanał do odblokowania (opcjonalny)")
             .setRequired(false)
             .addChannelTypes(ChannelType.GuildText)
         )
         .addChannelOption((option) =>
           option
-            .setName("kanał4")
+            .setName("kanal4")
             .setDescription("Czwarty kanał do odblokowania (opcjonalny)")
             .setRequired(false)
             .addChannelTypes(ChannelType.GuildText)
         )
         .addChannelOption((option) =>
           option
-            .setName("kanał5")
+            .setName("kanal5")
             .setDescription("Piąty kanał do odblokowania (opcjonalny)")
             .setRequired(false)
             .addChannelTypes(ChannelType.GuildText)
@@ -107,11 +107,11 @@ module.exports = {
       const subcommand = interaction.options.getSubcommand();
       const guildId = interaction.guild.id;
 
-      if (subcommand === "włącz") {
+      if (subcommand === "wlacz") {
         // Zbierz wszystkie podane kanały
         const channels = [];
         for (let i = 1; i <= 5; i++) {
-          const channel = interaction.options.getChannel(`kanał${i}`);
+          const channel = interaction.options.getChannel(`kanal${i}`);
           if (channel) {
             channels.push(channel);
           }
@@ -141,11 +141,11 @@ module.exports = {
             flags: 64, // ephemeral
           });
         }
-      } else if (subcommand === "wyłącz") {
+      } else if (subcommand === "wylacz") {
         // Zbierz wszystkie podane kanały
         const channels = [];
         for (let i = 1; i <= 5; i++) {
-          const channel = interaction.options.getChannel(`kanał${i}`);
+          const channel = interaction.options.getChannel(`kanal${i}`);
           if (channel) {
             channels.push(channel);
           }
@@ -195,7 +195,7 @@ module.exports = {
         }
       }
     } catch (error) {
-      console.error("[BLOKUJ-WIADOMOŚCI] Błąd:", error);
+      console.error("[BLOKUJ-WIADOMOSCI] Błąd:", error);
 
       await interaction.reply({
         content: "❌ Wystąpił błąd podczas zarządzania blokowaniem wiadomości.",

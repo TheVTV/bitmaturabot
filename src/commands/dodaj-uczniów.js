@@ -1,16 +1,24 @@
 const { SlashCommandBuilder, PermissionFlagsBits } = require("discord.js");
 const { addPending } = require("../state/pending");
+const { getAdminRoleName } = require("../db/config_mysql");
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName("dodaj-uczniów")
-    .setDescription("Dodaj uczniów z pliku .txt (tylko właściciel serwera)")
-    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    .setDescription("Dodaj uczniów z pliku .txt (wymaga roli administratora)")
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    .setContexts([0]),
   async execute(interaction) {
-    // Sprawdź czy użytkownik to właściciel serwera
-    if (interaction.user.id !== interaction.guild.ownerId) {
+    // Sprawdź czy użytkownik ma rolę administratora z konfiguracji lub jest właścicielem serwera
+    const adminRoleName = await getAdminRoleName(interaction.guild.id);
+    const hasAdminRole = interaction.member.roles.cache.some(
+      (role) => role.name === adminRoleName
+    );
+    const isOwner = interaction.user.id === interaction.guild.ownerId;
+
+    if (!hasAdminRole && !isOwner) {
       return await interaction.reply({
-        content: "❌ Tylko właściciel serwera może używać tej komendy!",
+        content: `❌ Ta komenda wymaga roli administratora (**${adminRoleName}**) lub uprawnień właściciela serwera.`,
         flags: 64, // MessageFlags.Ephemeral
       });
     }

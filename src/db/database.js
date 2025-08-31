@@ -134,12 +134,72 @@ async function createTables() {
       CREATE TABLE IF NOT EXISTS server_configs (
         guild_id VARCHAR(255) PRIMARY KEY,
         student_role VARCHAR(255) NOT NULL,
+        teacher_role VARCHAR(255),
+        admin_role VARCHAR(255),
         group_roles JSON NOT NULL,
         configured_by VARCHAR(255) NOT NULL,
         configured_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `);
+
+    // Dodaj nowe kolumny jeśli nie istnieją (migracja)
+    try {
+      await connection.execute(`
+        ALTER TABLE server_configs 
+        ADD COLUMN teacher_role VARCHAR(255) AFTER student_role
+      `);
+      console.log("[DB] Dodano kolumnę teacher_role");
+    } catch (error) {
+      // Kolumna już istnieje
+    }
+
+    try {
+      await connection.execute(`
+        ALTER TABLE server_configs 
+        ADD COLUMN admin_role VARCHAR(255) AFTER teacher_role
+      `);
+      console.log("[DB] Dodano kolumnę admin_role");
+    } catch (error) {
+      // Kolumna już istnieje
+    }
+
+    // Tabela punktów użytkowników
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS user_points (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        discord_id VARCHAR(255) NOT NULL,
+        guild_id VARCHAR(255) NOT NULL,
+        points INT DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY unique_user_guild (discord_id, guild_id),
+        INDEX idx_points (points DESC)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+
+    // Migracja: sprawdź czy trzeba usunąć stary UNIQUE constraint
+    try {
+      const [constraints] = await connection.execute(`
+        SELECT CONSTRAINT_NAME 
+        FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS 
+        WHERE TABLE_SCHEMA = DATABASE() 
+        AND TABLE_NAME = 'user_points' 
+        AND CONSTRAINT_TYPE = 'UNIQUE' 
+        AND CONSTRAINT_NAME != 'unique_user_guild'
+      `);
+
+      if (constraints.length > 0) {
+        for (const constraint of constraints) {
+          await connection.execute(`
+            ALTER TABLE user_points DROP INDEX ${constraint.CONSTRAINT_NAME}
+          `);
+          console.log(`[DB] Usunięto stary constraint: ${constraint.CONSTRAINT_NAME}`);
+        }
+      }
+    } catch (error) {
+      // Ignoruj błędy migracji - tabela może być już poprawna
+    }
 
     console.log("[DB] Tabele sprawdzone/utworzone");
   } catch (error) {

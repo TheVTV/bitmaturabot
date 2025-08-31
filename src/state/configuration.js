@@ -5,11 +5,13 @@ function startConfiguration(userId, guildId, channelId) {
   configurations.set(userId, {
     guildId,
     channelId,
-    step: "group_count", // group_count -> group_roles -> student_role -> done
+    step: "group_count", // group_count -> group_roles -> student_role -> teacher_role -> admin_role -> import_users -> done
     groupCount: 0,
     currentGroup: 1,
     groupRoles: {},
     studentRole: null,
+    teacherRole: null,
+    adminRole: null,
   });
 }
 

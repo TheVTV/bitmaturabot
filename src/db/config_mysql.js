@@ -10,7 +10,7 @@ async function loadConfigs() {
 
     try {
       const [rows] = await connection.execute(
-        "SELECT guild_id, student_role, group_roles, configured_by, configured_at FROM server_configs"
+        "SELECT guild_id, student_role, teacher_role, admin_role, group_roles, configured_by, configured_at FROM server_configs"
       );
 
       configCache.clear();
@@ -31,6 +31,8 @@ async function loadConfigs() {
 
           configCache.set(row.guild_id, {
             studentRole: row.student_role,
+            teacherRole: row.teacher_role,
+            adminRole: row.admin_role,
             groupRoles: groupRoles,
             configuredBy: row.configured_by,
             configuredAt: row.configured_at,
@@ -43,6 +45,8 @@ async function loadConfigs() {
           // Użyj domyślnej konfiguracji
           configCache.set(row.guild_id, {
             studentRole: row.student_role,
+            teacherRole: row.teacher_role,
+            adminRole: row.admin_role,
             groupRoles: {},
             configuredBy: row.configured_by,
             configuredAt: row.configured_at,
@@ -77,16 +81,20 @@ async function setServerConfig(guildId, config) {
 
     try {
       await connection.execute(
-        `INSERT INTO server_configs (guild_id, student_role, group_roles, configured_by) 
-         VALUES (?, ?, ?, ?) 
+        `INSERT INTO server_configs (guild_id, student_role, teacher_role, admin_role, group_roles, configured_by) 
+         VALUES (?, ?, ?, ?, ?, ?) 
          ON DUPLICATE KEY UPDATE 
          student_role = VALUES(student_role), 
+         teacher_role = VALUES(teacher_role), 
+         admin_role = VALUES(admin_role), 
          group_roles = VALUES(group_roles), 
          configured_by = VALUES(configured_by), 
          updated_at = CURRENT_TIMESTAMP`,
         [
           guildId,
           config.studentRole,
+          config.teacherRole,
+          config.adminRole,
           JSON.stringify(config.groupRoles),
           config.configuredBy,
         ]
@@ -122,10 +130,28 @@ async function getStudentRoleName(guildId) {
   return config.studentRole;
 }
 
+async function getTeacherRoleName(guildId) {
+  const config = await getServerConfig(guildId);
+  if (!config || !config.teacherRole) {
+    return "nauczyciel"; // fallback do nazwy domyślnej
+  }
+  return config.teacherRole;
+}
+
+async function getAdminRoleName(guildId) {
+  const config = await getServerConfig(guildId);
+  if (!config || !config.adminRole) {
+    return "administrator"; // fallback do nazwy domyślnej
+  }
+  return config.adminRole;
+}
+
 module.exports = {
   getServerConfig,
   setServerConfig,
   getGroupRoleName,
   getStudentRoleName,
+  getTeacherRoleName,
+  getAdminRoleName,
   loadConfigs,
 };

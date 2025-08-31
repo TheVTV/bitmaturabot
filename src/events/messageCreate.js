@@ -3,6 +3,7 @@ const {
   hasPending,
   takePending,
   getPendingGuildId,
+  hasPendingType,
 } = require("../state/pending");
 const {
   getGroupByEmail,
@@ -10,7 +11,10 @@ const {
   importUsersFromText,
   getUserCount,
   updateUserDiscordId,
+  getUserByEmail,
+  updateUserGroup,
 } = require("../db/users_mysql");
+const { addUserPoints, setUserPoints } = require("../db/points");
 const {
   getGroupRoleName,
   getStudentRoleName,
@@ -28,6 +32,28 @@ module.exports = {
   name: Events.MessageCreate,
   async execute(message, client) {
     if (message.author.bot) return;
+
+    // Obsługa frazy "kto pytał" - reaguj na dowolnym kanale
+    const content = message.content.toLowerCase().trim();
+    const ktoQualifiedPhrases = [
+      "kto pytał",
+      "kto pytał?",
+      "kto pytal",
+      "kto pytal?",
+      "kto pyta",
+      "kto pyta?",
+      "kto pytał.",
+      "kto pytal."
+    ];
+
+    if (ktoQualifiedPhrases.some(phrase => content === phrase || content.includes(phrase))) {
+      try {
+        await message.channel.send("Siema, ja pytałem");
+        console.log(`[KTO PYTAŁ] Odpowiedziano na wiadomość od ${message.author.tag} w kanale ${message.channel.name}`);
+      } catch (error) {
+        console.error("[KTO PYTAŁ] Błąd wysyłania odpowiedzi:", error);
+      }
+    }
 
     // Sprawdź czy kanał ma włączone blokowanie wiadomości
     if (
@@ -67,6 +93,16 @@ module.exports = {
       message.channel.name.startsWith("📚 Import uczniów -")
     ) {
       await handleUserImportMessage(message, client);
+      return;
+    }
+
+    // Obsługa zmiany grupy w prywatnych wątkach
+    if (
+      message.channel.isThread() &&
+      message.channel.name.startsWith("Zmiana grupy -") &&
+      hasPendingType(userId, "group_change")
+    ) {
+      await handleGroupChangeMessage(message, client);
       return;
     }
 
@@ -130,13 +166,58 @@ async function handleConfigurationMessage(message, client) {
 
       config.studentRole = roleMention.name;
 
+      // Przejdź do kroku roli nauczyciela
+      updateConfiguration(userId, { step: "teacher_role" });
+
+      await message.reply(
+        `✅ **Rola ucznia zapisana:** ${roleMention.name}\n\n` +
+          `🎓 **Teraz podaj rolę dla nauczycieli.**\n` +
+          `Napisz wiadomość z pingiem roli dla nauczycieli.`
+      );
+    } else if (config.step === "teacher_role") {
+      const roleMention = message.mentions.roles.first();
+      if (!roleMention) {
+        await message.reply(
+          "Nie znaleziono roli. Upewnij się, że pingujesz rolę dla nauczycieli."
+        );
+        return;
+      }
+
+      config.teacherRole = roleMention.name;
+
+      // Przejdź do kroku roli administracyjnej
+      updateConfiguration(userId, { step: "admin_role" });
+
+      await message.reply(
+        `✅ **Rola nauczyciela zapisana:** ${roleMention.name}\n\n` +
+          `👑 **Teraz podaj rolę administracyjną.**\n` +
+          `Napisz wiadomość z pingiem roli dla administratorów.`
+      );
+    } else if (config.step === "admin_role") {
+      const roleMention = message.mentions.roles.first();
+      if (!roleMention) {
+        await message.reply(
+          "Nie znaleziono roli. Upewnij się, że pingujesz rolę administracyjną."
+        );
+        return;
+      }
+
+      config.adminRole = roleMention.name;
+
+      // Przejdź do kroku importu użytkowników
+      updateConfiguration(userId, { step: "import_users" });
+
+      config.adminRole = roleMention.name;
+
       // Przejdź do kroku importu użytkowników
       updateConfiguration(userId, { step: "import_users" });
 
       await message.reply(
         `✅ **Konfiguracja ról zakończona!**\n\n` +
-          `**Rola ucznia:** ${roleMention.name}\n` +
-          `**Role grup:**\n` +
+          `**📚 Rola ucznia:** ${config.studentRole}\n` +
+          `**🎓 Rola nauczyciela:** ${config.teacherRole}\n` +
+          `**👑 Rola administracyjna:** ${config.adminRole}\n\n` +
+          `**🏫 Role grup:**\n` +
           (() => {
             let roles = "";
             for (let i = 1; i <= config.groupCount; i++) {
@@ -161,6 +242,8 @@ async function handleConfigurationMessage(message, client) {
         setServerConfig(config.guildId, {
           groupRoles: finalConfig.groupRoles,
           studentRole: finalConfig.studentRole,
+          teacherRole: finalConfig.teacherRole,
+          adminRole: finalConfig.adminRole,
           configuredBy: userId,
           configuredAt: new Date().toISOString(),
         });
@@ -214,6 +297,8 @@ async function handleConfigurationMessage(message, client) {
           setServerConfig(config.guildId, {
             groupRoles: finalConfig.groupRoles,
             studentRole: finalConfig.studentRole,
+            teacherRole: finalConfig.teacherRole,
+            adminRole: finalConfig.adminRole,
             configuredBy: userId,
             configuredAt: new Date().toISOString(),
           });
@@ -331,6 +416,15 @@ async function handleRegistrationMessage(message, client) {
     // Zapisz Discord ID użytkownika w bazie danych
     await updateUserDiscordId(email, userId);
 
+    // Dodaj użytkownika do tabeli punktów z 0 punktami
+    try {
+      await setUserPoints(userId, guild.id, 0);
+      console.log(`[POINTS] Dodano użytkownika ${userId} do tabeli punktów z 0 punktami`);
+    } catch (pointsError) {
+      console.warn(`[POINTS] Nie udało się dodać użytkownika ${userId} do tabeli punktów:`, pointsError.message);
+      // Nie przerywamy rejestracji jeśli punkty się nie dodały
+    }
+
     // Zmień pseudonim na imię i nazwisko, jeśli dostępne
     if (fullname) {
       try {
@@ -360,7 +454,7 @@ async function handleRegistrationMessage(message, client) {
           `[THREAD] Zamknięto wątek rejestracyjny dla ${message.author.tag}`
         );
       } catch (err) {
-        console.warn("[THREAD] Nie udało się zamknąć wątku:", err.message);
+        console.warn("[THREAD] Nie udało się zamknąć wątków:", err.message);
       }
     }, 3000); // 3 sekundy
   } catch (err) {
@@ -498,5 +592,229 @@ async function handleUserImportMessage(message, client) {
     await message.channel.send(
       "❌ Wystąpił błąd podczas importu użytkowników. Sprawdź format pliku i spróbuj ponownie."
     );
+  }
+}
+
+async function handleGroupChangeMessage(message, client) {
+  const userId = message.author.id;
+  const { hasPendingType, takePending } = require("../state/pending");
+  
+  if (!hasPendingType(userId, "group_change")) {
+    return;
+  }
+
+  const pendingData = message.client.groupChangeStates?.get(userId) || {
+    step: "email",
+    email: null,
+    userData: null,
+    newGroup: null
+  };
+
+  // Inicjalizuj mapę stanów jeśli nie istnieje
+  if (!message.client.groupChangeStates) {
+    message.client.groupChangeStates = new Map();
+  }
+
+  try {
+    if (pendingData.step === "email") {
+      const email = message.content.trim().toLowerCase();
+      
+      // Walidacja formatu email
+      if (!email.includes("@") || !email.includes(".")) {
+        await message.reply("❌ Podaj prawidłowy adres e-mail (przykład: jan.kowalski@example.com)");
+        return;
+      }
+
+      // Znajdź użytkownika w bazie
+      const userData = await getUserByEmail(email);
+      
+      if (!userData) {
+        await message.reply(`❌ Nie znaleziono użytkownika z adresem e-mail: **${email}**\n\nSprawdź czy adres jest poprawny i czy użytkownik znajduje się w bazie danych.`);
+        return;
+      }
+
+      // Pobierz informacje o roli Discord (jeśli user ma Discord ID)
+      let discordInfo = "";
+      if (userData.discordId) {
+        try {
+          const discordUser = await client.users.fetch(userData.discordId);
+          const guildMember = await message.guild.members.fetch(userData.discordId);
+          discordInfo = `\n**Discord:** ${discordUser.tag} (${guildMember.displayName})`;
+        } catch (error) {
+          discordInfo = `\n**Discord ID:** ${userData.discordId} (użytkownik niedostępny)`;
+        }
+      } else {
+        discordInfo = `\n**Discord:** Nie połączony`;
+      }
+
+      // Wyświetl informacje o użytkowniku
+      await message.reply(
+        `✅ **Znaleziono użytkownika:**\n\n` +
+        `**Imię i nazwisko:** ${userData.fullname || "Brak danych"}\n` +
+        `**E-mail:** ${userData.email || email}\n` +
+        `**Aktualna grupa:** ${userData.group}${discordInfo}\n\n` +
+        `🔄 **Do której grupy chcesz przenieść tego użytkownika?**\n` +
+        `Wpisz numer grupy (np. 1, 2, 3...):`
+      );
+
+      // Zapisz dane użytkownika i przejdź do następnego kroku
+      pendingData.step = "new_group";
+      pendingData.email = email;
+      pendingData.userData = userData;
+      message.client.groupChangeStates.set(userId, pendingData);
+
+    } else if (pendingData.step === "new_group") {
+      const groupInput = message.content.trim();
+      const newGroup = parseInt(groupInput);
+
+      // Walidacja numeru grupy
+      if (isNaN(newGroup) || newGroup < 1 || newGroup > 99) {
+        await message.reply("❌ Podaj prawidłowy numer grupy (liczba od 1 do 99)");
+        return;
+      }
+
+      // Sprawdź czy to nie ta sama grupa
+      if (String(newGroup) === String(pendingData.userData.group)) {
+        await message.reply(`❌ Użytkownik już znajduje się w grupie **${newGroup}**. Podaj inny numer grupy.`);
+        return;
+      }
+
+      // Pobierz nazwy ról
+      const { getGroupRoleName } = require("../db/config_mysql");
+      const oldGroupRole = await getGroupRoleName(message.guild.id, pendingData.userData.group);
+      const newGroupRole = await getGroupRoleName(message.guild.id, newGroup);
+
+      // Wyświetl podsumowanie i zapytaj o potwierdzenie
+      await message.reply(
+        `📋 **Podsumowanie zmiany grupy:**\n\n` +
+        `**Użytkownik:** ${pendingData.userData.fullname || "Brak danych"}\n` +
+        `**E-mail:** ${pendingData.email}\n` +
+        `**Zmiana:** Grupa ${pendingData.userData.group} (${oldGroupRole}) → Grupa ${newGroup} (${newGroupRole})\n\n` +
+        `⚠️ **Czy na pewno chcesz wykonać tę zmianę?**\n` +
+        `Wpisz **"tak"** aby potwierdzić lub **"nie"** aby anulować.`
+      );
+
+      // Zapisz nowy numer grupy i przejdź do kroku potwierdzenia
+      pendingData.step = "confirmation";
+      pendingData.newGroup = newGroup;
+      message.client.groupChangeStates.set(userId, pendingData);
+
+    } else if (pendingData.step === "confirmation") {
+      const confirmation = message.content.trim().toLowerCase();
+
+      if (confirmation === "nie" || confirmation === "anuluj") {
+        // Anuluj proces
+        message.client.groupChangeStates.delete(userId);
+        takePending(userId);
+        
+        await message.reply("❌ **Proces zmiany grupy został anulowany.**\n\nWątek zostanie zamknięty za 10 sekund.");
+        
+        setTimeout(async () => {
+          try {
+            await message.channel.setArchived(true);
+          } catch (error) {
+            console.warn("[THREAD] Nie udało się zamknąć wątku:", error.message);
+          }
+        }, 10000);
+        return;
+      }
+
+      if (confirmation !== "tak") {
+        await message.reply(`⚠️ Wpisz **"tak"** aby potwierdzić zmianę lub **"nie"** aby anulować.`);
+        return;
+      }
+
+      // Wykonaj zmianę grupy
+      await message.reply("⏳ **Przetwarzam zmianę grupy...**");
+
+      // 1. Zaktualizuj bazę danych
+      const dbUpdateSuccess = await updateUserGroup(pendingData.email, pendingData.newGroup);
+      
+      if (!dbUpdateSuccess) {
+        await message.reply("❌ **Błąd podczas aktualizacji bazy danych.** Spróbuj ponownie lub skontaktuj się z administratorem.");
+        return;
+      }
+
+      // 2. Zaktualizuj role Discord (jeśli użytkownik ma Discord ID)
+      let roleUpdateInfo = "";
+      if (pendingData.userData.discordId) {
+        try {
+          const guildMember = await message.guild.members.fetch(pendingData.userData.discordId);
+          const { getGroupRoleName } = require("../db/config_mysql");
+          
+          // Znajdź i usuń starą rolę grupy
+          const oldGroupRole = await getGroupRoleName(message.guild.id, pendingData.userData.group);
+          const oldRole = message.guild.roles.cache.find(role => role.name === oldGroupRole);
+          
+          // Znajdź i dodaj nową rolę grupy
+          const newGroupRole = await getGroupRoleName(message.guild.id, pendingData.newGroup);
+          const newRole = message.guild.roles.cache.find(role => role.name === newGroupRole);
+
+          if (oldRole && guildMember.roles.cache.has(oldRole.id)) {
+            await guildMember.roles.remove(oldRole);
+            roleUpdateInfo += `\n✅ Usunięto rolę: **${oldRole.name}**`;
+          }
+
+          if (newRole) {
+            await guildMember.roles.add(newRole);
+            roleUpdateInfo += `\n✅ Dodano rolę: **${newRole.name}**`;
+          } else {
+            roleUpdateInfo += `\n⚠️ Nie znaleziono roli dla grupy ${pendingData.newGroup}`;
+          }
+
+          // Wyślij prywatną wiadomość do użytkownika
+          try {
+            const discordUser = await client.users.fetch(pendingData.userData.discordId);
+            await discordUser.send(
+              `🔄 **Zmiana grupy**\n\n` +
+              `Cześć! Informujemy, że Twoja grupa została zmieniona.\n\n` +
+              `**Nowa grupa:** ${pendingData.newGroup}\n` +
+              `**Serwer:** ${message.guild.name}\n\n` +
+              `Jeśli masz pytania, skontaktuj się z administracją serwera.`
+            );
+            roleUpdateInfo += `\n✅ Wysłano powiadomienie do użytkownika`;
+          } catch (dmError) {
+            roleUpdateInfo += `\n⚠️ Nie udało się wysłać powiadomienia do użytkownika (DM zablokowane)`;
+          }
+
+        } catch (memberError) {
+          roleUpdateInfo += `\n❌ Nie udało się zaktualizować ról Discord: ${memberError.message}`;
+        }
+      } else {
+        roleUpdateInfo = `\n📝 Użytkownik nie ma połączonego konta Discord - role nie zostały zaktualizowane`;
+      }
+
+      // Wyświetl podsumowanie
+      await message.reply(
+        `✅ **Zmiana grupy zakończona pomyślnie!**\n\n` +
+        `**Użytkownik:** ${pendingData.userData.fullname || "Brak danych"}\n` +
+        `**E-mail:** ${pendingData.email}\n` +
+        `**Stara grupa:** ${pendingData.userData.group}\n` +
+        `**Nowa grupa:** ${pendingData.newGroup}\n\n` +
+        `📊 **Status aktualizacji:**\n` +
+        `✅ Baza danych zaktualizowana${roleUpdateInfo}\n\n` +
+        `Wątek zostanie zamknięty za 30 sekund.`
+      );
+
+      // Wyczyść stan i zamknij wątek
+      message.client.groupChangeStates.delete(userId);
+      takePending(userId);
+
+      setTimeout(async () => {
+        try {
+          await message.channel.setArchived(true);
+        } catch (error) {
+          console.warn("[THREAD] Nie udało się zamknąć wątku:", error.message);
+        }
+      }, 30000);
+    }
+
+  } catch (error) {
+    console.error("[ZMIANA GRUPY] Błąd podczas przetwarzania:", error);
+    await message.reply("❌ Wystąpił błąd podczas zmiany grupy. Spróbuj ponownie lub skontaktuj się z administracją.");
+    
+    // Wyczyść stan w przypadku błędu
+    message.client.groupChangeStates?.delete(userId);
+    takePending(userId);
   }
 }

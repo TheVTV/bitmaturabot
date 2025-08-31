@@ -10,6 +10,8 @@ Zaawansowany bot Discord do automatycznej rejestracji studentów z systemem szyf
 - **💬 Prywatne wątki** - Rejestracja w bezpiecznych thread'ach
 - **⚙️ Konfiguracja serwera** - Elastyczne ustawienie ról przez właściciela
 - **📊 MySQL Database** - Wydajna baza danych z szyfrowaniem
+- **🤖 Automatyczne odpowiedzi** - Bot reaguje na popularne frazy
+- **🏆 System punktowy** - Nagradzanie użytkowników punktami z rankingiem
 
 ## 🚀 Instalacja
 
@@ -75,7 +77,19 @@ Bot potrzebuje następujących uprawnień:
 
 - `/ping` - Test połączenia z botem
 - `/rejestruj` - Rozpoczęcie procesu rejestracji
-- `/konfiguracja` - Ustawienie ról serwera (tylko właściciel)
+- `/konfiguracja` - Ustawienie ról serwera (wymaga roli administratora z konfiguracji)
+- `/zmień-grupę` - Zmiana grupy użytkownika (wymaga roli administratora z konfiguracji)
+- `/grupa` - Wyświetlenie listy uczniów z wybranej grupy (dla nauczycieli i administratorów)
+- `/dodaj-uczniów` - Import uczniów z pliku (wymaga roli administratora z konfiguracji)
+- `/dodaj-punkty` - Dodanie punktów użytkownikowi (dla nauczycieli i administratorów)
+- `/punkty` - Sprawdzenie punktów użytkownika (dla uczniów, nauczycieli i administratorów)
+- `/ranking` - Wyświetlenie rankingu punktów top 10 (dla uczniów, nauczycieli i administratorów)
+
+## 🤖 Automatyczne odpowiedzi
+
+Bot automatycznie reaguje na określone frazy:
+
+- **"kto pytał"** (i warianty) → "Siema, ja pytałem"
 
 ## 🔐 Bezpieczeństwo
 
