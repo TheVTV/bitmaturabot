@@ -21,7 +21,8 @@ module.exports = {
         .setRequired(true)
         .setMaxLength(500)
     )
-    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    .setContexts([0]),
 
   async execute(interaction) {
     try {
