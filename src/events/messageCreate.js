@@ -446,6 +446,23 @@ async function handleRegistrationMessage(message, client) {
 
     await message.reply(successMessage);
 
+    // Usuń rolę niezarejestrowany po 3 sekundach od wysłania wiadomości
+    setTimeout(async () => {
+      try {
+        const { getUnregisteredRoleId } = require("../db/config_mysql");
+        const unregisteredRoleId = await getUnregisteredRoleId(guildId);
+        if (unregisteredRoleId) {
+          const unregRole = guild.roles.cache.get(unregisteredRoleId);
+          if (unregRole && member.roles.cache.has(unregRole.id)) {
+            await member.roles.remove(unregRole, 'Użytkownik zarejestrowany - dodano role ucznia i grupy');
+            console.log(`[REGISTRATION] Usunięto rolę niezarejestrowany (${unregRole.name}) dla ${member.user.tag}`);
+          }
+        }
+      } catch (err) {
+        console.error(`[REGISTRATION] Błąd usuwania roli niezarejestrowany:`, err.message);
+      }
+    }, 3000);
+
     // Automatycznie zamknij wątek po 3 sekundach
     setTimeout(async () => {
       try {

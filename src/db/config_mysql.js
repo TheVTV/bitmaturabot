@@ -10,7 +10,7 @@ async function loadConfigs() {
 
     try {
       const [rows] = await connection.execute(
-        "SELECT guild_id, student_role, teacher_role, admin_role, group_roles, configured_by, configured_at FROM server_configs"
+        "SELECT guild_id, student_role, teacher_role, admin_role, group_roles, unregistered_role_id, configured_by, configured_at FROM server_configs"
       );
 
       configCache.clear();
@@ -34,6 +34,7 @@ async function loadConfigs() {
             teacherRole: row.teacher_role,
             adminRole: row.admin_role,
             groupRoles: groupRoles,
+            unregisteredRoleId: row.unregistered_role_id,
             configuredBy: row.configured_by,
             configuredAt: row.configured_at,
           });
@@ -48,6 +49,7 @@ async function loadConfigs() {
             teacherRole: row.teacher_role,
             adminRole: row.admin_role,
             groupRoles: {},
+            unregisteredRoleId: row.unregistered_role_id,
             configuredBy: row.configured_by,
             configuredAt: row.configured_at,
           });
@@ -81,13 +83,14 @@ async function setServerConfig(guildId, config) {
 
     try {
       await connection.execute(
-        `INSERT INTO server_configs (guild_id, student_role, teacher_role, admin_role, group_roles, configured_by) 
-         VALUES (?, ?, ?, ?, ?, ?) 
+        `INSERT INTO server_configs (guild_id, student_role, teacher_role, admin_role, group_roles, unregistered_role_id, configured_by) 
+         VALUES (?, ?, ?, ?, ?, ?, ?) 
          ON DUPLICATE KEY UPDATE 
          student_role = VALUES(student_role), 
          teacher_role = VALUES(teacher_role), 
          admin_role = VALUES(admin_role), 
          group_roles = VALUES(group_roles), 
+         unregistered_role_id = VALUES(unregistered_role_id),
          configured_by = VALUES(configured_by), 
          updated_at = CURRENT_TIMESTAMP`,
         [
@@ -96,6 +99,7 @@ async function setServerConfig(guildId, config) {
           config.teacherRole,
           config.adminRole,
           JSON.stringify(config.groupRoles),
+          config.unregisteredRoleId || null,
           config.configuredBy,
         ]
       );
@@ -146,6 +150,11 @@ async function getAdminRoleName(guildId) {
   return config.adminRole;
 }
 
+async function getUnregisteredRoleId(guildId) {
+  const config = await getServerConfig(guildId);
+  return config?.unregisteredRoleId || null;
+}
+
 module.exports = {
   getServerConfig,
   setServerConfig,
@@ -153,5 +162,6 @@ module.exports = {
   getStudentRoleName,
   getTeacherRoleName,
   getAdminRoleName,
+  getUnregisteredRoleId,
   loadConfigs,
 };

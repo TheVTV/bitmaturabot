@@ -17,6 +17,20 @@ module.exports = {
     );
 
     if (hasStudentRole) {
+      // Usuń rolę niezarejestrowany jeśli istnieje
+      const { getUnregisteredRoleId } = require("../db/config_mysql");
+      const unregisteredRoleId = await getUnregisteredRoleId(
+        interaction.guild.id
+      );
+      if (unregisteredRoleId) {
+        const unregRole = interaction.guild.roles.cache.get(unregisteredRoleId);
+        if (unregRole && interaction.member.roles.cache.has(unregRole.id)) {
+          await interaction.member.roles.remove(
+            unregRole,
+            "Użytkownik zarejestrowany"
+          );
+        }
+      }
       return interaction.reply({
         content: "Jesteś już zarejestrowany!",
         flags: MessageFlags.Ephemeral,

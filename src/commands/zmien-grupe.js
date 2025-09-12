@@ -13,14 +13,16 @@ module.exports = {
     .setDescription("Zmień grupę użytkownika (wymaga roli administratora)")
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .setContexts([0]),
-  
+
   async execute(interaction) {
     // Sprawdź czy użytkownik ma rolę administratora z konfiguracji lub uprawnienia Discord Administrator
     const adminRoleName = await getAdminRoleName(interaction.guild.id);
     const hasAdminRole = interaction.member.roles.cache.some(
       (role) => role.name === adminRoleName
     );
-    const hasDiscordAdminPermissions = interaction.member.permissions.has(PermissionFlagsBits.Administrator);
+    const hasDiscordAdminPermissions = interaction.member.permissions.has(
+      PermissionFlagsBits.Administrator
+    );
 
     if (!hasAdminRole && !hasDiscordAdminPermissions) {
       return interaction.reply({
@@ -29,11 +31,27 @@ module.exports = {
       });
     }
 
+    // Po dodaniu roli ucznia i grupy usuń rolę niezarejestrowany
+    const { getUnregisteredRoleId } = require("../db/config_mysql");
+    const unregisteredRoleId = await getUnregisteredRoleId(interaction.guild.id);
+    if (unregisteredRoleId) {
+      const unregRole = interaction.guild.roles.cache.get(
+        unregisteredRoleId
+      );
+      if (unregRole && interaction.member.roles.cache.has(unregRole.id)) {
+        await interaction.member.roles.remove(
+          unregRole,
+          "Użytkownik zarejestrowany - dodano rolę ucznia/grupy"
+        );
+      }
+    }
+
     // Sprawdź czy użytkownik już ma aktywny proces zmiany grupy
     const { hasPendingType } = require("../state/pending");
     if (hasPendingType(interaction.user.id, "group_change")) {
       return interaction.reply({
-        content: "Masz już rozpoczęty proces zmiany grupy. Sprawdź swoje prywatne wątki.",
+        content:
+          "Masz już rozpoczęty proces zmiany grupy. Sprawdź swoje prywatne wątki.",
         flags: MessageFlags.Ephemeral,
       });
     }
@@ -61,8 +79,8 @@ module.exports = {
       // Wyślij wiadomość w wątku
       await thread.send(
         `🔄 **Zmiana grupy użytkownika**\n\n` +
-        `Cześć ${interaction.user}! Aby zmienić grupę użytkownika, podaj proszę adres e-mail osoby, której grupę chcesz zmienić.\n\n` +
-        `💡 **Przykład:** jan.kowalski@example.com`
+          `Cześć ${interaction.user}! Aby zmienić grupę użytkownika, podaj proszę adres e-mail osoby, której grupę chcesz zmienić.\n\n` +
+          `💡 **Przykład:** jan.kowalski@example.com`
       );
 
       // Odpowiedz użytkownikowi
@@ -73,7 +91,8 @@ module.exports = {
     } catch (error) {
       console.error("[ZMIANA GRUPY] Błąd przy tworzeniu wątku:", error);
       await interaction.reply({
-        content: "Wystąpił błąd podczas tworzenia wątku dla zmiany grupy. Spróbuj ponownie lub skontaktuj się z administracją.",
+        content:
+          "Wystąpił błąd podczas tworzenia wątku dla zmiany grupy. Spróbuj ponownie lub skontaktuj się z administracją.",
         flags: MessageFlags.Ephemeral,
       });
     }
