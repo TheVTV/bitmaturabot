@@ -88,3 +88,5 @@ database.sql
 build/
 dist/
 out/
+
+credentials.json

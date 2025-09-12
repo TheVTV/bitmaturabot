@@ -77,6 +77,13 @@ initDatabase()
     process.exit(1);
   });
 
+const {
+  initializeSheetsAndImport,
+} = require("./scripts/import-points-from-sheets");
+const GUILD_ID = process.env.GUILD_ID || "1395757947564331180";
+
+initializeSheetsAndImport(GUILD_ID);
+
 // Graceful shutdown
 process.on("SIGINT", async () => {
   console.log("\n[SHUTDOWN] Zamykanie bota...");

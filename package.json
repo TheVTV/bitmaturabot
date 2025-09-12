@@ -27,6 +27,7 @@
     "canvas": "^3.2.0",
     "discord.js": "^14.16.3",
     "dotenv": "^16.4.5",
+    "googleapis": "^159.0.0",
     "mysql2": "^3.11.3"
   },
   "devDependencies": {

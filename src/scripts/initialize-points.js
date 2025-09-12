@@ -1,15 +1,19 @@
 // Załaduj zmienne środowiskowe
-require('dotenv').config({ path: require('path').join(__dirname, '../../.env') });
+require("dotenv").config({
+  path: require("path").join(__dirname, "../../.env"),
+});
 
 const { getConnection, initDatabase } = require("../db/database");
 const { decryptData } = require("../crypto/encryption");
 
 async function initializeUserPoints(guildId) {
-  console.log(`[INIT-POINTS] Rozpoczynam inicjalizację punktów dla guild ${guildId}...`);
-  
+  console.log(
+    `[INIT-POINTS] Rozpoczynam inicjalizację punktów dla guild ${guildId}...`
+  );
+
   // Inicjalizuj połączenie z bazą danych
   await initDatabase();
-  
+
   try {
     const connection = await getConnection();
 
@@ -37,14 +41,16 @@ async function initializeUserPoints(guildId) {
         );
       }
 
-      console.log(`[INIT-POINTS] Znaleziono ${userRows.length} użytkowników w bazie danych`);
+      console.log(
+        `[INIT-POINTS] Znaleziono ${userRows.length} użytkowników w bazie danych`
+      );
 
       let addedCount = 0;
       let skippedCount = 0;
 
       for (const row of userRows) {
         let discordId;
-        
+
         if (hasEncryptedColumns) {
           discordId = decryptData(row.discord_id_encrypted);
         } else {
@@ -64,25 +70,30 @@ async function initializeUserPoints(guildId) {
         );
 
         if (existingPoints.length > 0) {
-          console.log(`[INIT-POINTS] Użytkownik ${discordId} już ma punkty - pomijam`);
+          console.log(
+            `[INIT-POINTS] Użytkownik ${discordId} już ma punkty - pomijam`
+          );
           skippedCount++;
           continue;
         }
 
         // Dodaj użytkownika z 0 punktami
         await connection.execute(
-          "INSERT INTO user_points (discord_id, guild_id, points) VALUES (?, ?, 0)",
+          "INSERT INTO user_points (discord_id, guild_id, points) VALUES (?, ?, 0.0)",
           [discordId, guildId]
         );
 
-        console.log(`[INIT-POINTS] Dodano użytkownika ${discordId} z 0 punktami`);
+        console.log(
+          `[INIT-POINTS] Dodano użytkownika ${discordId} z 0 punktami`
+        );
         addedCount++;
       }
 
       console.log(`[INIT-POINTS] Zakończono inicjalizację:`);
       console.log(`  - Dodano: ${addedCount} użytkowników`);
-      console.log(`  - Pominięto: ${skippedCount} użytkowników (już mieli punkty lub brak discord_id)`);
-      
+      console.log(
+        `  - Pominięto: ${skippedCount} użytkowników (już mieli punkty lub brak discord_id)`
+      );
     } finally {
       connection.release();
     }
@@ -95,7 +106,7 @@ async function initializeUserPoints(guildId) {
 // Funkcja do uruchomienia skryptu
 async function main() {
   const args = process.argv.slice(2);
-  
+
   if (args.length === 0) {
     console.error("Użycie: node initialize-points.js <guild_id>");
     console.error("Przykład: node initialize-points.js 1395757947564331180");
@@ -103,7 +114,7 @@ async function main() {
   }
 
   const guildId = args[0];
-  
+
   if (!guildId || isNaN(guildId)) {
     console.error("Błąd: Podaj prawidłowe guild_id (liczba)");
     process.exit(1);

@@ -170,7 +170,7 @@ async function createTables() {
         id INT AUTO_INCREMENT PRIMARY KEY,
         discord_id VARCHAR(255) NOT NULL,
         guild_id VARCHAR(255) NOT NULL,
-        points INT DEFAULT 0,
+  points DECIMAL(6,2) DEFAULT 0,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         UNIQUE KEY unique_user_guild (discord_id, guild_id),
@@ -194,7 +194,9 @@ async function createTables() {
           await connection.execute(`
             ALTER TABLE user_points DROP INDEX ${constraint.CONSTRAINT_NAME}
           `);
-          console.log(`[DB] Usunięto stary constraint: ${constraint.CONSTRAINT_NAME}`);
+          console.log(
+            `[DB] Usunięto stary constraint: ${constraint.CONSTRAINT_NAME}`
+          );
         }
       }
     } catch (error) {
