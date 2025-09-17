@@ -33,11 +33,11 @@ module.exports = {
 
     // Po dodaniu roli ucznia i grupy usuń rolę niezarejestrowany
     const { getUnregisteredRoleId } = require("../db/config_mysql");
-    const unregisteredRoleId = await getUnregisteredRoleId(interaction.guild.id);
+    const unregisteredRoleId = await getUnregisteredRoleId(
+      interaction.guild.id
+    );
     if (unregisteredRoleId) {
-      const unregRole = interaction.guild.roles.cache.get(
-        unregisteredRoleId
-      );
+      const unregRole = interaction.guild.roles.cache.get(unregisteredRoleId);
       if (unregRole && interaction.member.roles.cache.has(unregRole.id)) {
         await interaction.member.roles.remove(
           unregRole,

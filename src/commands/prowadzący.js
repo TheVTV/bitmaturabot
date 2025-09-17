@@ -1,13 +1,30 @@
-const { SlashCommandBuilder, MessageFlags } = require("discord.js");
+const {
+  SlashCommandBuilder,
+  MessageFlags,
+  PermissionFlagsBits,
+} = require("discord.js");
 const { getAllTeachers } = require("../db/teachers");
 const { getTeacherRoleName } = require("../db/config_mysql");
+const { checkUserPermissions } = require("../utils/permissions");
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName("prowadzący")
-    .setDescription("Wyświetl listę prowadzących przypisanych do grup"),
+    .setDescription("Wyświetl listę prowadzących przypisanych do grup")
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages) // Dla nauczycieli i administratorów
+    .setContexts([0]),
 
   async execute(interaction) {
+    // Sprawdź uprawnienia użytkownika
+    const permissions = await checkUserPermissions(interaction, "prowadzący");
+    if (!permissions.canUseCommand) {
+      await interaction.reply({
+        content: `[UPRAWNIENIA] ${permissions.reason}`,
+        flags: MessageFlags.Ephemeral,
+      });
+      return;
+    }
+
     // Sprawdź czy użytkownik ma rolę prowadzącego (nauczyciela)
     const teacherRoleName = await getTeacherRoleName(interaction.guild.id);
     const hasTeacherRole = interaction.member.roles.cache.some(

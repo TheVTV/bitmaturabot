@@ -16,15 +16,17 @@ async function loadPointsCache(guildId) {
 
       const cacheKey = `guild_${guildId}`;
       const guildPoints = new Map();
-      
+
       rows.forEach((row) => {
         guildPoints.set(row.discord_id, row.points);
       });
 
       pointsCache.set(cacheKey, guildPoints);
       lastCacheUpdate = Date.now();
-      
-      console.log(`[POINTS] Załadowano ${rows.length} rekordów punktów dla guild ${guildId}`);
+
+      console.log(
+        `[POINTS] Załadowano ${rows.length} rekordów punktów dla guild ${guildId}`
+      );
     } finally {
       connection.release();
     }
@@ -41,7 +43,7 @@ async function getUserPoints(discordId, guildId) {
 
   const cacheKey = `guild_${guildId}`;
   const guildPoints = pointsCache.get(cacheKey);
-  
+
   if (!guildPoints) {
     await loadPointsCache(guildId);
     const refreshedGuildPoints = pointsCache.get(cacheKey);
@@ -69,16 +71,20 @@ async function addUserPoints(discordId, guildId, pointsToAdd) {
           "UPDATE user_points SET points = ?, updated_at = CURRENT_TIMESTAMP WHERE discord_id = ? AND guild_id = ?",
           [newPoints, discordId, guildId]
         );
-        console.log(`[POINTS] Zaktualizowano punkty dla ${discordId}: ${existing[0].points} + ${pointsToAdd} = ${newPoints}`);
+        console.log(
+          `[POINTS] Zaktualizowano punkty dla ${discordId}: ${existing[0].points} + ${pointsToAdd} = ${newPoints}`
+        );
       } else {
         // Użytkownik nie istnieje - stwórz nowy rekord
         await connection.execute(
           "INSERT INTO user_points (discord_id, guild_id, points) VALUES (?, ?, ?)",
           [discordId, guildId, pointsToAdd]
         );
-        console.log(`[POINTS] Utworzono nowy rekord dla ${discordId} z ${pointsToAdd} punktami`);
+        console.log(
+          `[POINTS] Utworzono nowy rekord dla ${discordId} z ${pointsToAdd} punktami`
+        );
       }
-      
+
       // Odśwież cache dla tej gildii
       await loadPointsCache(guildId);
       return true;
@@ -106,8 +112,10 @@ async function setUserPoints(discordId, guildId, points) {
         [discordId, guildId, points]
       );
 
-      console.log(`[POINTS] Ustawiono ${points} punktów dla użytkownika ${discordId} w guild ${guildId}`);
-      
+      console.log(
+        `[POINTS] Ustawiono ${points} punktów dla użytkownika ${discordId} w guild ${guildId}`
+      );
+
       // Odśwież cache dla tej gildii
       await loadPointsCache(guildId);
       return true;
@@ -127,7 +135,9 @@ async function getTopUsers(guildId, limit = 10) {
     try {
       // Użyj interpolacji stringa dla LIMIT zamiast parametru
       const [rows] = await connection.execute(
-        `SELECT discord_id, points FROM user_points WHERE guild_id = ? ORDER BY points DESC LIMIT ${parseInt(limit)}`,
+        `SELECT discord_id, points FROM user_points WHERE guild_id = ? ORDER BY points DESC LIMIT ${parseInt(
+          limit
+        )}`,
         [guildId]
       );
 
@@ -194,11 +204,55 @@ async function getTotalUsers(guildId) {
   }
 }
 
+async function getTopUsersByGroup(guildId, groupNumber, limit = 10) {
+  try {
+    const connection = await getConnection();
+    const { getUserByDiscordId } = require("./users_mysql");
+
+    try {
+      // Najpierw pobierz wszystkich użytkowników z punktami
+      const [rows] = await connection.execute(
+        `SELECT discord_id, points FROM user_points WHERE guild_id = ? ORDER BY points DESC`,
+        [guildId]
+      );
+
+      // Filtruj użytkowników według grupy i dodaj fullname
+      const groupUsers = [];
+
+      for (const row of rows) {
+        const userData = await getUserByDiscordId(row.discord_id);
+
+        // Sprawdź czy użytkownik należy do odpowiedniej grupy
+        if (userData && String(userData.group) === String(groupNumber)) {
+          groupUsers.push({
+            discord_id: row.discord_id,
+            points: row.points,
+            fullname: userData.fullname,
+          });
+
+          // Ogranicz do żądanej liczby
+          if (groupUsers.length >= limit) {
+            break;
+          }
+        }
+      }
+
+      return groupUsers;
+    } finally {
+      connection.release();
+    }
+  } catch (err) {
+    console.error("[POINTS] Błąd pobierania rankingu grupy:", err.message);
+    return [];
+  }
+}
+
 module.exports = {
   getUserPoints,
   addUserPoints,
   setUserPoints,
   getTopUsers,
+  getTopUsersByGroup,
   getUserRank,
   getTotalUsers,
   loadPointsCache,

@@ -43,13 +43,19 @@ module.exports = {
       "kto pyta",
       "kto pyta?",
       "kto pytał.",
-      "kto pytal."
+      "kto pytal.",
     ];
 
-    if (ktoQualifiedPhrases.some(phrase => content === phrase || content.includes(phrase))) {
+    if (
+      ktoQualifiedPhrases.some(
+        (phrase) => content === phrase || content.includes(phrase)
+      )
+    ) {
       try {
         await message.channel.send("Siema, ja pytałem");
-        console.log(`[KTO PYTAŁ] Odpowiedziano na wiadomość od ${message.author.tag} w kanale ${message.channel.name}`);
+        console.log(
+          `[KTO PYTAŁ] Odpowiedziano na wiadomość od ${message.author.tag} w kanale ${message.channel.name}`
+        );
       } catch (error) {
         console.error("[KTO PYTAŁ] Błąd wysyłania odpowiedzi:", error);
       }
@@ -106,11 +112,20 @@ module.exports = {
       return;
     }
 
-    // Obsługuj tylko wątki prywatne utworzone przez bota dla rejestracji
+    // Obsługuj tylko wątki prywatne utworzone przez bota
     if (!message.channel.isThread() || !message.channel.type === 12) return; // 12 = PrivateThread
-    if (!message.channel.name.startsWith("Rejestracja -")) return;
 
-    await handleRegistrationMessage(message, client);
+    // Obsługa wątków rejestracji
+    if (message.channel.name.startsWith("Rejestracja -")) {
+      await handleRegistrationMessage(message, client);
+      return;
+    }
+
+    // Obsługa wątków Szkopuł ID
+    if (message.channel.name.startsWith("Szkopuł ID -")) {
+      await handleSzkopulIdMessage(message, client);
+      return;
+    }
   },
 };
 
@@ -419,9 +434,14 @@ async function handleRegistrationMessage(message, client) {
     // Dodaj użytkownika do tabeli punktów z 0 punktami
     try {
       await setUserPoints(userId, guild.id, 0);
-      console.log(`[POINTS] Dodano użytkownika ${userId} do tabeli punktów z 0 punktami`);
+      console.log(
+        `[POINTS] Dodano użytkownika ${userId} do tabeli punktów z 0 punktami`
+      );
     } catch (pointsError) {
-      console.warn(`[POINTS] Nie udało się dodać użytkownika ${userId} do tabeli punktów:`, pointsError.message);
+      console.warn(
+        `[POINTS] Nie udało się dodać użytkownika ${userId} do tabeli punktów:`,
+        pointsError.message
+      );
       // Nie przerywamy rejestracji jeśli punkty się nie dodały
     }
 
@@ -454,12 +474,20 @@ async function handleRegistrationMessage(message, client) {
         if (unregisteredRoleId) {
           const unregRole = guild.roles.cache.get(unregisteredRoleId);
           if (unregRole && member.roles.cache.has(unregRole.id)) {
-            await member.roles.remove(unregRole, 'Użytkownik zarejestrowany - dodano role ucznia i grupy');
-            console.log(`[REGISTRATION] Usunięto rolę niezarejestrowany (${unregRole.name}) dla ${member.user.tag}`);
+            await member.roles.remove(
+              unregRole,
+              "Użytkownik zarejestrowany - dodano role ucznia i grupy"
+            );
+            console.log(
+              `[REGISTRATION] Usunięto rolę niezarejestrowany (${unregRole.name}) dla ${member.user.tag}`
+            );
           }
         }
       } catch (err) {
-        console.error(`[REGISTRATION] Błąd usuwania roli niezarejestrowany:`, err.message);
+        console.error(
+          `[REGISTRATION] Błąd usuwania roli niezarejestrowany:`,
+          err.message
+        );
       }
     }, 3000);
 
@@ -615,7 +643,7 @@ async function handleUserImportMessage(message, client) {
 async function handleGroupChangeMessage(message, client) {
   const userId = message.author.id;
   const { hasPendingType, takePending } = require("../state/pending");
-  
+
   if (!hasPendingType(userId, "group_change")) {
     return;
   }
@@ -624,7 +652,7 @@ async function handleGroupChangeMessage(message, client) {
     step: "email",
     email: null,
     userData: null,
-    newGroup: null
+    newGroup: null,
   };
 
   // Inicjalizuj mapę stanów jeśli nie istnieje
@@ -635,18 +663,22 @@ async function handleGroupChangeMessage(message, client) {
   try {
     if (pendingData.step === "email") {
       const email = message.content.trim().toLowerCase();
-      
+
       // Walidacja formatu email
       if (!email.includes("@") || !email.includes(".")) {
-        await message.reply("❌ Podaj prawidłowy adres e-mail (przykład: jan.kowalski@example.com)");
+        await message.reply(
+          "❌ Podaj prawidłowy adres e-mail (przykład: jan.kowalski@example.com)"
+        );
         return;
       }
 
       // Znajdź użytkownika w bazie
       const userData = await getUserByEmail(email);
-      
+
       if (!userData) {
-        await message.reply(`❌ Nie znaleziono użytkownika z adresem e-mail: **${email}**\n\nSprawdź czy adres jest poprawny i czy użytkownik znajduje się w bazie danych.`);
+        await message.reply(
+          `❌ Nie znaleziono użytkownika z adresem e-mail: **${email}**\n\nSprawdź czy adres jest poprawny i czy użytkownik znajduje się w bazie danych.`
+        );
         return;
       }
 
@@ -655,7 +687,9 @@ async function handleGroupChangeMessage(message, client) {
       if (userData.discordId) {
         try {
           const discordUser = await client.users.fetch(userData.discordId);
-          const guildMember = await message.guild.members.fetch(userData.discordId);
+          const guildMember = await message.guild.members.fetch(
+            userData.discordId
+          );
           discordInfo = `\n**Discord:** ${discordUser.tag} (${guildMember.displayName})`;
         } catch (error) {
           discordInfo = `\n**Discord ID:** ${userData.discordId} (użytkownik niedostępny)`;
@@ -667,11 +701,11 @@ async function handleGroupChangeMessage(message, client) {
       // Wyświetl informacje o użytkowniku
       await message.reply(
         `✅ **Znaleziono użytkownika:**\n\n` +
-        `**Imię i nazwisko:** ${userData.fullname || "Brak danych"}\n` +
-        `**E-mail:** ${userData.email || email}\n` +
-        `**Aktualna grupa:** ${userData.group}${discordInfo}\n\n` +
-        `🔄 **Do której grupy chcesz przenieść tego użytkownika?**\n` +
-        `Wpisz numer grupy (np. 1, 2, 3...):`
+          `**Imię i nazwisko:** ${userData.fullname || "Brak danych"}\n` +
+          `**E-mail:** ${userData.email || email}\n` +
+          `**Aktualna grupa:** ${userData.group}${discordInfo}\n\n` +
+          `🔄 **Do której grupy chcesz przenieść tego użytkownika?**\n` +
+          `Wpisz numer grupy (np. 1, 2, 3...):`
       );
 
       // Zapisz dane użytkownika i przejdź do następnego kroku
@@ -679,43 +713,50 @@ async function handleGroupChangeMessage(message, client) {
       pendingData.email = email;
       pendingData.userData = userData;
       message.client.groupChangeStates.set(userId, pendingData);
-
     } else if (pendingData.step === "new_group") {
       const groupInput = message.content.trim();
       const newGroup = parseInt(groupInput);
 
       // Walidacja numeru grupy
       if (isNaN(newGroup) || newGroup < 1 || newGroup > 99) {
-        await message.reply("❌ Podaj prawidłowy numer grupy (liczba od 1 do 99)");
+        await message.reply(
+          "❌ Podaj prawidłowy numer grupy (liczba od 1 do 99)"
+        );
         return;
       }
 
       // Sprawdź czy to nie ta sama grupa
       if (String(newGroup) === String(pendingData.userData.group)) {
-        await message.reply(`❌ Użytkownik już znajduje się w grupie **${newGroup}**. Podaj inny numer grupy.`);
+        await message.reply(
+          `❌ Użytkownik już znajduje się w grupie **${newGroup}**. Podaj inny numer grupy.`
+        );
         return;
       }
 
       // Pobierz nazwy ról
       const { getGroupRoleName } = require("../db/config_mysql");
-      const oldGroupRole = await getGroupRoleName(message.guild.id, pendingData.userData.group);
+      const oldGroupRole = await getGroupRoleName(
+        message.guild.id,
+        pendingData.userData.group
+      );
       const newGroupRole = await getGroupRoleName(message.guild.id, newGroup);
 
       // Wyświetl podsumowanie i zapytaj o potwierdzenie
       await message.reply(
         `📋 **Podsumowanie zmiany grupy:**\n\n` +
-        `**Użytkownik:** ${pendingData.userData.fullname || "Brak danych"}\n` +
-        `**E-mail:** ${pendingData.email}\n` +
-        `**Zmiana:** Grupa ${pendingData.userData.group} (${oldGroupRole}) → Grupa ${newGroup} (${newGroupRole})\n\n` +
-        `⚠️ **Czy na pewno chcesz wykonać tę zmianę?**\n` +
-        `Wpisz **"tak"** aby potwierdzić lub **"nie"** aby anulować.`
+          `**Użytkownik:** ${
+            pendingData.userData.fullname || "Brak danych"
+          }\n` +
+          `**E-mail:** ${pendingData.email}\n` +
+          `**Zmiana:** Grupa ${pendingData.userData.group} (${oldGroupRole}) → Grupa ${newGroup} (${newGroupRole})\n\n` +
+          `⚠️ **Czy na pewno chcesz wykonać tę zmianę?**\n` +
+          `Wpisz **"tak"** aby potwierdzić lub **"nie"** aby anulować.`
       );
 
       // Zapisz nowy numer grupy i przejdź do kroku potwierdzenia
       pendingData.step = "confirmation";
       pendingData.newGroup = newGroup;
       message.client.groupChangeStates.set(userId, pendingData);
-
     } else if (pendingData.step === "confirmation") {
       const confirmation = message.content.trim().toLowerCase();
 
@@ -723,21 +764,28 @@ async function handleGroupChangeMessage(message, client) {
         // Anuluj proces
         message.client.groupChangeStates.delete(userId);
         takePending(userId);
-        
-        await message.reply("❌ **Proces zmiany grupy został anulowany.**\n\nWątek zostanie zamknięty za 10 sekund.");
-        
+
+        await message.reply(
+          "❌ **Proces zmiany grupy został anulowany.**\n\nWątek zostanie zamknięty za 10 sekund."
+        );
+
         setTimeout(async () => {
           try {
             await message.channel.setArchived(true);
           } catch (error) {
-            console.warn("[THREAD] Nie udało się zamknąć wątku:", error.message);
+            console.warn(
+              "[THREAD] Nie udało się zamknąć wątku:",
+              error.message
+            );
           }
         }, 10000);
         return;
       }
 
       if (confirmation !== "tak") {
-        await message.reply(`⚠️ Wpisz **"tak"** aby potwierdzić zmianę lub **"nie"** aby anulować.`);
+        await message.reply(
+          `⚠️ Wpisz **"tak"** aby potwierdzić zmianę lub **"nie"** aby anulować.`
+        );
         return;
       }
 
@@ -745,10 +793,15 @@ async function handleGroupChangeMessage(message, client) {
       await message.reply("⏳ **Przetwarzam zmianę grupy...**");
 
       // 1. Zaktualizuj bazę danych
-      const dbUpdateSuccess = await updateUserGroup(pendingData.email, pendingData.newGroup);
-      
+      const dbUpdateSuccess = await updateUserGroup(
+        pendingData.email,
+        pendingData.newGroup
+      );
+
       if (!dbUpdateSuccess) {
-        await message.reply("❌ **Błąd podczas aktualizacji bazy danych.** Spróbuj ponownie lub skontaktuj się z administratorem.");
+        await message.reply(
+          "❌ **Błąd podczas aktualizacji bazy danych.** Spróbuj ponownie lub skontaktuj się z administratorem."
+        );
         return;
       }
 
@@ -756,16 +809,28 @@ async function handleGroupChangeMessage(message, client) {
       let roleUpdateInfo = "";
       if (pendingData.userData.discordId) {
         try {
-          const guildMember = await message.guild.members.fetch(pendingData.userData.discordId);
+          const guildMember = await message.guild.members.fetch(
+            pendingData.userData.discordId
+          );
           const { getGroupRoleName } = require("../db/config_mysql");
-          
+
           // Znajdź i usuń starą rolę grupy
-          const oldGroupRole = await getGroupRoleName(message.guild.id, pendingData.userData.group);
-          const oldRole = message.guild.roles.cache.find(role => role.name === oldGroupRole);
-          
+          const oldGroupRole = await getGroupRoleName(
+            message.guild.id,
+            pendingData.userData.group
+          );
+          const oldRole = message.guild.roles.cache.find(
+            (role) => role.name === oldGroupRole
+          );
+
           // Znajdź i dodaj nową rolę grupy
-          const newGroupRole = await getGroupRoleName(message.guild.id, pendingData.newGroup);
-          const newRole = message.guild.roles.cache.find(role => role.name === newGroupRole);
+          const newGroupRole = await getGroupRoleName(
+            message.guild.id,
+            pendingData.newGroup
+          );
+          const newRole = message.guild.roles.cache.find(
+            (role) => role.name === newGroupRole
+          );
 
           if (oldRole && guildMember.roles.cache.has(oldRole.id)) {
             await guildMember.roles.remove(oldRole);
@@ -781,19 +846,20 @@ async function handleGroupChangeMessage(message, client) {
 
           // Wyślij prywatną wiadomość do użytkownika
           try {
-            const discordUser = await client.users.fetch(pendingData.userData.discordId);
+            const discordUser = await client.users.fetch(
+              pendingData.userData.discordId
+            );
             await discordUser.send(
               `🔄 **Zmiana grupy**\n\n` +
-              `Cześć! Informujemy, że Twoja grupa została zmieniona.\n\n` +
-              `**Nowa grupa:** ${pendingData.newGroup}\n` +
-              `**Serwer:** ${message.guild.name}\n\n` +
-              `Jeśli masz pytania, skontaktuj się z administracją serwera.`
+                `Cześć! Informujemy, że Twoja grupa została zmieniona.\n\n` +
+                `**Nowa grupa:** ${pendingData.newGroup}\n` +
+                `**Serwer:** ${message.guild.name}\n\n` +
+                `Jeśli masz pytania, skontaktuj się z administracją serwera.`
             );
             roleUpdateInfo += `\n✅ Wysłano powiadomienie do użytkownika`;
           } catch (dmError) {
             roleUpdateInfo += `\n⚠️ Nie udało się wysłać powiadomienia do użytkownika (DM zablokowane)`;
           }
-
         } catch (memberError) {
           roleUpdateInfo += `\n❌ Nie udało się zaktualizować ról Discord: ${memberError.message}`;
         }
@@ -804,13 +870,15 @@ async function handleGroupChangeMessage(message, client) {
       // Wyświetl podsumowanie
       await message.reply(
         `✅ **Zmiana grupy zakończona pomyślnie!**\n\n` +
-        `**Użytkownik:** ${pendingData.userData.fullname || "Brak danych"}\n` +
-        `**E-mail:** ${pendingData.email}\n` +
-        `**Stara grupa:** ${pendingData.userData.group}\n` +
-        `**Nowa grupa:** ${pendingData.newGroup}\n\n` +
-        `📊 **Status aktualizacji:**\n` +
-        `✅ Baza danych zaktualizowana${roleUpdateInfo}\n\n` +
-        `Wątek zostanie zamknięty za 30 sekund.`
+          `**Użytkownik:** ${
+            pendingData.userData.fullname || "Brak danych"
+          }\n` +
+          `**E-mail:** ${pendingData.email}\n` +
+          `**Stara grupa:** ${pendingData.userData.group}\n` +
+          `**Nowa grupa:** ${pendingData.newGroup}\n\n` +
+          `📊 **Status aktualizacji:**\n` +
+          `✅ Baza danych zaktualizowana${roleUpdateInfo}\n\n` +
+          `Wątek zostanie zamknięty za 30 sekund.`
       );
 
       // Wyczyść stan i zamknij wątek
@@ -825,13 +893,26 @@ async function handleGroupChangeMessage(message, client) {
         }
       }, 30000);
     }
-
   } catch (error) {
     console.error("[ZMIANA GRUPY] Błąd podczas przetwarzania:", error);
-    await message.reply("❌ Wystąpił błąd podczas zmiany grupy. Spróbuj ponownie lub skontaktuj się z administracją.");
-    
+    await message.reply(
+      "❌ Wystąpił błąd podczas zmiany grupy. Spróbuj ponownie lub skontaktuj się z administracją."
+    );
+
     // Wyczyść stan w przypadku błędu
     message.client.groupChangeStates?.delete(userId);
     takePending(userId);
+  }
+}
+
+async function handleSzkopulIdMessage(message, client) {
+  // Importuj komendę szkopul-id
+  const szkopulIdCommand = require("../commands/dodaj-szkopul-id");
+
+  // Deleguj obsługę do komendy
+  const handled = await szkopulIdCommand.handleThreadMessage(message);
+
+  if (!handled) {
+    console.warn("[SZKOPUL-ID] Nie udało się obsłużyć wiadomości w wątku");
   }
 }

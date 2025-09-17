@@ -2,6 +2,7 @@ const {
   SlashCommandBuilder,
   MessageFlags,
   AttachmentBuilder,
+  PermissionFlagsBits,
 } = require("discord.js");
 const { getUserPoints, getUserRank } = require("../db/points");
 const {
@@ -10,6 +11,7 @@ const {
   getStudentRoleName,
 } = require("../db/config_mysql");
 const { createCanvas, loadImage } = require("canvas");
+const { checkUserPermissions } = require("../utils/permissions");
 const https = require("https");
 const http = require("http");
 const path = require("path");
@@ -208,6 +210,16 @@ module.exports = {
     .setContexts([0]),
 
   async execute(interaction) {
+    // Sprawdź uprawnienia użytkownika
+    const permissions = await checkUserPermissions(interaction, "punkty");
+    if (!permissions.canUseCommand) {
+      await interaction.reply({
+        content: `[UPRAWNIENIA] ${permissions.reason}`,
+        flags: MessageFlags.Ephemeral,
+      });
+      return;
+    }
+
     // Sprawdź czy użytkownik ma odpowiednią rolę
     const adminRoleName = await getAdminRoleName(interaction.guild.id);
     const teacherRoleName = await getTeacherRoleName(interaction.guild.id);

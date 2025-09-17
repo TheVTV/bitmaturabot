@@ -9,7 +9,7 @@ module.exports = {
     // Pobierz config serwera z bazy MySQL
     const { getUnregisteredRoleId } = require("../db/config_mysql");
     const unregisteredRoleId = await getUnregisteredRoleId(member.guild.id);
-    
+
     if (unregisteredRoleId) {
       const role = member.guild.roles.cache.get(unregisteredRoleId);
       if (role) {

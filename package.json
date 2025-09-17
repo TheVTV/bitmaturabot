@@ -9,7 +9,10 @@
     "dev": "nodemon --ext js,json --watch src src/index.js",
     "deploy": "node src/deploy-commands.js",
     "deploy:guild": "node src/deploy-commands-guild.js",
-    "check": "node src/scripts/health-check.js"
+    "check": "node src/scripts/health-check.js",
+    "sync": "node src/scripts/data-sync-scheduler.js",
+    "sync:once": "node src/scripts/data-sync-scheduler.js --once",
+    "time:check": "node -e \"console.log('UTC:', new Date().toISOString()); console.log('Polska:', new Date().toLocaleString('pl-PL', {timeZone: 'Europe/Warsaw'}));\""
   },
   "engines": {
     "node": ">=18"
@@ -23,12 +26,15 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "axios": "^1.6.0",
     "bcrypt": "^5.1.1",
     "canvas": "^3.2.0",
+    "cheerio": "^1.0.0-rc.12",
     "discord.js": "^14.16.3",
     "dotenv": "^16.4.5",
     "googleapis": "^159.0.0",
-    "mysql2": "^3.11.3"
+    "mysql2": "^3.11.3",
+    "node-cron": "^3.0.3"
   },
   "devDependencies": {
     "nodemon": "^3.1.0"

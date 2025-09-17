@@ -4,13 +4,25 @@ const {
   MessageFlags,
 } = require("discord.js");
 const { addPending } = require("../state/pending");
+const { checkUserPermissions } = require("../utils/permissions");
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName("rejestruj")
     .setDescription("Rozpocznij proces rejestracji i weryfikacji e-maila")
+    .setDefaultMemberPermissions(null) // Dostępne dla wszystkich, nawet niezarejestrowanych
     .setContexts([0]),
   async execute(interaction) {
+    // Sprawdź uprawnienia użytkownika
+    const permissions = await checkUserPermissions(interaction, "rejestruj");
+    if (!permissions.canUseCommand) {
+      await interaction.reply({
+        content: `[UPRAWNIENIA] ${permissions.reason}`,
+        flags: MessageFlags.Ephemeral,
+      });
+      return;
+    }
+
     // Sprawdź czy użytkownik już ma rolę "uczeń"
     const hasStudentRole = interaction.member.roles.cache.some(
       (role) => role.name.toLowerCase() === "uczeń"

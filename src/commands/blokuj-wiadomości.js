@@ -2,11 +2,13 @@ const {
   SlashCommandBuilder,
   PermissionFlagsBits,
   ChannelType,
+  MessageFlags,
 } = require("discord.js");
 const {
   setChannelBlocked,
   getBlockedChannels,
 } = require("../state/blockedChannels");
+const { checkUserPermissions } = require("../utils/permissions");
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -99,10 +101,23 @@ module.exports = {
         .setName("lista")
         .setDescription("Pokaż listę zablokowanych kanałów")
     )
-    .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages)
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator) // Tylko administratorzy
     .setContexts([0]),
 
   async execute(interaction) {
+    // Sprawdź uprawnienia użytkownika
+    const permissions = await checkUserPermissions(
+      interaction,
+      "blokuj-wiadomości"
+    );
+    if (!permissions.canUseCommand) {
+      await interaction.reply({
+        content: `[UPRAWNIENIA] ${permissions.reason}`,
+        flags: MessageFlags.Ephemeral,
+      });
+      return;
+    }
+
     try {
       const subcommand = interaction.options.getSubcommand();
       const guildId = interaction.guild.id;

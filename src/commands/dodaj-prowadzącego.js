@@ -5,6 +5,7 @@ module.exports = {
   data: new SlashCommandBuilder()
     .setName("dodaj-prowadzącego")
     .setDescription("Przypisz prowadzącego do grupy")
+    .setContexts([0])
     .addUserOption((option) =>
       option
         .setName("prowadzący")

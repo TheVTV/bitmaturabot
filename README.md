@@ -81,7 +81,6 @@ Bot potrzebuje następujących uprawnień:
 - `/zmień-grupę` - Zmiana grupy użytkownika (wymaga roli administratora z konfiguracji)
 - `/grupa` - Wyświetlenie listy uczniów z wybranej grupy (dla nauczycieli i administratorów)
 - `/dodaj-uczniów` - Import uczniów z pliku (wymaga roli administratora z konfiguracji)
-- `/dodaj-punkty` - Dodanie punktów użytkownikowi (dla nauczycieli i administratorów)
 - `/punkty` - Sprawdzenie punktów użytkownika (dla uczniów, nauczycieli i administratorów)
 - `/ranking` - Wyświetlenie rankingu punktów top 10 (dla uczniów, nauczycieli i administratorów)
 

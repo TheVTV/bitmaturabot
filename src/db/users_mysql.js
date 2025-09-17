@@ -28,19 +28,19 @@ async function loadUsers() {
       if (hasEncryptedColumns) {
         // Nowy sposób - zaszyfrowane kolumny
         [rows] = await connection.execute(
-          "SELECT email_encrypted, email_search_hash, group_number, fullname_encrypted, discord_id_encrypted FROM users ORDER BY id"
+          "SELECT email_encrypted, email_search_hash, group_number, fullname_encrypted, discord_id_encrypted, szkopul_id_encrypted, szkopul_id_search_hash FROM users ORDER BY id"
         );
       } else {
         // Stary sposób - niezaszyfrowane kolumny (wsteczna kompatybilność)
         [rows] = await connection.execute(
-          "SELECT email, group_number, fullname, discord_id FROM users ORDER BY id"
+          "SELECT email, group_number, fullname, discord_id, szkopul_id FROM users ORDER BY id"
         );
       }
 
       usersCache.clear();
 
       for (const row of rows) {
-        let email, fullname, discordId;
+        let email, fullname, discordId, szkopulId;
 
         if (hasEncryptedColumns) {
           // Odszyfruj dane
@@ -50,6 +50,9 @@ async function loadUsers() {
             : null;
           discordId = row.discord_id_encrypted
             ? decryptData(row.discord_id_encrypted)
+            : null;
+          szkopulId = row.szkopul_id_encrypted
+            ? decryptData(row.szkopul_id_encrypted)
             : null;
 
           // Użyj search hash jako klucza cache
@@ -61,6 +64,7 @@ async function loadUsers() {
               group: row.group_number.trim(),
               fullname: fullname ? fullname.trim() : null,
               discordId: discordId,
+              szkopulId: szkopulId,
             });
           }
         } else {
@@ -68,6 +72,7 @@ async function loadUsers() {
           email = row.email;
           fullname = row.fullname;
           discordId = row.discord_id;
+          szkopulId = row.szkopul_id;
 
           if (email) {
             usersCache.set(email.toLowerCase().trim(), {
@@ -75,6 +80,7 @@ async function loadUsers() {
               group: row.group_number.trim(),
               fullname: fullname ? fullname.trim() : null,
               discordId: discordId,
+              szkopulId: szkopulId,
             });
           }
         }
@@ -122,6 +128,11 @@ async function getGroupByEmail(email) {
 async function getFullnameByEmail(email) {
   const userData = await getUserByEmail(email);
   return userData ? userData.fullname : null;
+}
+
+async function getSzkopulIdByEmail(email) {
+  const userData = await getUserByEmail(email);
+  return userData ? userData.szkopulId : null;
 }
 
 async function addUser(email, groupNumber, fullname = null, discordId = null) {
@@ -414,6 +425,98 @@ async function updateUserGroup(email, newGroupNumber) {
   }
 }
 
+async function updateUserSzkopulId(discordId, szkopulId) {
+  try {
+    const connection = await getConnection();
+
+    try {
+      // Sprawdź czy mamy nowe kolumny zaszyfrowane
+      const [columns] = await connection.execute(`
+        SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS 
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users'
+      `);
+
+      const columnNames = columns.map((col) => col.COLUMN_NAME);
+      const hasEncryptedColumns = columnNames.includes("szkopul_id_encrypted");
+
+      let result;
+
+      if (hasEncryptedColumns) {
+        // Nowy sposób - z szyfrowaniem
+        // Najpierw znajdź użytkownika po Discord ID
+        const [users] = await connection.execute(
+          "SELECT id, discord_id_encrypted FROM users WHERE discord_id_encrypted IS NOT NULL"
+        );
+
+        let userIdToUpdate = null;
+        for (const user of users) {
+          try {
+            const decryptedDiscordId = decryptData(user.discord_id_encrypted);
+            if (decryptedDiscordId === discordId.toString()) {
+              userIdToUpdate = user.id;
+              break;
+            }
+          } catch (decryptError) {
+            continue;
+          }
+        }
+
+        if (userIdToUpdate) {
+          const szkopulIdEncrypted = encryptData(szkopulId.toString());
+          const szkopulIdSearchHash = generateSearchHash(szkopulId.toString());
+
+          [result] = await connection.execute(
+            "UPDATE users SET szkopul_id_encrypted = ?, szkopul_id_search_hash = ? WHERE id = ?",
+            [szkopulIdEncrypted, szkopulIdSearchHash, userIdToUpdate]
+          );
+        } else {
+          // Fallback do starego systemu
+          if (columnNames.includes("discord_id")) {
+            const szkopulIdEncrypted = szkopulId
+              ? encryptData(szkopulId.toString())
+              : null;
+            const szkopulIdSearchHash = szkopulId
+              ? generateSearchHash(szkopulId.toString())
+              : null;
+
+            [result] = await connection.execute(
+              "UPDATE users SET szkopul_id_encrypted = ?, szkopul_id_search_hash = ? WHERE discord_id = ?",
+              [szkopulIdEncrypted, szkopulIdSearchHash, discordId.toString()]
+            );
+          }
+        }
+      } else {
+        // Stary sposób - bez szyfrowania
+        [result] = await connection.execute(
+          "UPDATE users SET szkopul_id = ? WHERE discord_id = ?",
+          [szkopulId, discordId.toString()]
+        );
+      }
+
+      if (result && result.affectedRows > 0) {
+        console.log(
+          `[DB] Zaktualizowano Szkopuł ID dla Discord ID ${discordId}: ${szkopulId}${
+            hasEncryptedColumns ? " (zaszyfrowane)" : ""
+          }`
+        );
+        // Odśwież cache
+        await loadUsers();
+        return true;
+      } else {
+        console.warn(
+          `[DB] Nie znaleziono użytkownika do aktualizacji Szkopuł ID: Discord ${discordId}`
+        );
+        return false;
+      }
+    } finally {
+      connection.release();
+    }
+  } catch (err) {
+    console.error("[DB] Błąd aktualizacji Szkopuł ID:", err.message);
+    return false;
+  }
+}
+
 async function getUserByDiscordId(discordId) {
   // Odśwież cache jeśli jest stary
   if (Date.now() - lastCacheUpdate > CACHE_TTL) {
@@ -428,6 +531,11 @@ async function getUserByDiscordId(discordId) {
   }
 
   return null;
+}
+
+async function getSzkopulIdByDiscordId(discordId) {
+  const userData = await getUserByDiscordId(discordId);
+  return userData ? userData.szkopulId : null;
 }
 
 // Pobierz wszystkich użytkowników z określonej grupy
@@ -451,6 +559,7 @@ async function getUsersByGroup(groupNumber) {
           fullname: userData.fullname,
           group: userData.group,
           discordId: userData.discordId,
+          szkopulId: userData.szkopulId,
         });
       }
     }
@@ -465,6 +574,45 @@ async function getUsersByGroup(groupNumber) {
     return usersInGroup;
   } catch (error) {
     console.error("[DB] Błąd podczas pobierania użytkowników z grupy:", error);
+    return [];
+  }
+}
+
+// Pobierz wszystkich użytkowników
+async function getAllUsers() {
+  try {
+    // Odśwież cache jeśli jest stary
+    if (Date.now() - lastCacheUpdate > CACHE_TTL) {
+      await loadUsers();
+    }
+
+    const allUsers = [];
+
+    // Przejdź przez cache i zbierz wszystkich użytkowników
+    for (const [key, userData] of usersCache.entries()) {
+      allUsers.push({
+        email: userData.email,
+        name: userData.fullname, // używamy 'name' zamiast 'fullname' dla spójności
+        fullname: userData.fullname,
+        group_number: parseInt(userData.group) || null,
+        discord_id: userData.discordId,
+        szkopul_id: userData.szkopulId,
+      });
+    }
+
+    // Sortuj alfabetycznie po nazwisku
+    allUsers.sort((a, b) => {
+      const nameA = (a.fullname || "").toLowerCase();
+      const nameB = (b.fullname || "").toLowerCase();
+      return nameA.localeCompare(nameB, "pl");
+    });
+
+    return allUsers;
+  } catch (error) {
+    console.error(
+      "[DB] Błąd podczas pobierania wszystkich użytkowników:",
+      error
+    );
     return [];
   }
 }
@@ -558,13 +706,17 @@ module.exports = {
   getGroupByEmail,
   getFullnameByEmail,
   getUserByEmail,
+  getSzkopulIdByEmail,
+  getSzkopulIdByDiscordId,
   loadUsers,
   addUser,
   importUsersFromText,
   getUserCount,
   updateUserDiscordId,
+  updateUserSzkopulId,
   getUserByDiscordId,
   getUsersByGroup,
+  getAllUsers,
   updateUserGroup,
   removeUserByDiscordId,
 };

@@ -1,6 +1,0 @@
-Jan Kowalski;jan.kowalski@example.com;1
-Anna Nowak;anna.nowak@example.com;1
-Piotr Wiśniewski;piotr.wisniewski@example.com;2
-Maria Kowalczyk;maria.kowalczyk@example.com;2
-Tomasz Woźniak;tomasz.wozniak@example.com;3
-Katarzyna Kaczmarek;katarzyna.kaczmarek@example.com;3

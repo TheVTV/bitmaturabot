@@ -2,6 +2,7 @@ const {
   SlashCommandBuilder,
   MessageFlags,
   AttachmentBuilder,
+  PermissionFlagsBits,
 } = require("discord.js");
 const {
   getTopUsers,
