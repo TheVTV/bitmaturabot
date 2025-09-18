@@ -4,11 +4,43 @@ const { checkUserPermissions } = require("../utils/permissions");
 module.exports = {
   name: Events.InteractionCreate,
   async execute(interaction, client) {
+    // Handle modal submissions
+    if (interaction.isModalSubmit()) {
+      if (interaction.customId.startsWith('absence_report_')) {
+        const { handleAbsenceReportModal } = require('../utils/absence-handler');
+        try {
+          await handleAbsenceReportModal(interaction);
+        } catch (error) {
+          console.error("Błąd podczas obsługi zgłoszenia nieobecności:", error);
+          
+          // Lepsze obsługi błędów dla modal submission
+          try {
+            if (!interaction.replied && !interaction.deferred) {
+              await interaction.reply({
+                content: "❌ Wystąpił błąd podczas przetwarzania zgłoszenia. Spróbuj ponownie za chwilę.",
+                flags: MessageFlags.Ephemeral,
+              });
+            } else {
+              await interaction.editReply({
+                content: "❌ Wystąpił błąd podczas przetwarzania zgłoszenia. Spróbuj ponownie za chwilę.",
+              });
+            }
+          } catch (replyError) {
+            console.error("Nie można wysłać komunikatu o błędzie:", replyError);
+          }
+        }
+        return;
+      }
+    }
+
     if (!interaction.isChatInputCommand()) return;
 
     // GLOBALNY FILTR UPRAWNIEŃ - sprawdź przed wykonaniem komendy
     try {
-      const permissions = await checkUserPermissions(interaction, interaction.commandName);
+      const permissions = await checkUserPermissions(
+        interaction,
+        interaction.commandName
+      );
       if (!permissions.canUseCommand) {
         return interaction.reply({
           content: `❌ **Brak dostępu:** ${permissions.reason}`,

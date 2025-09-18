@@ -79,10 +79,10 @@ async function performDataSync() {
 
     const endTime = new Date();
     const duration = Math.round((endTime - startTime) / 1000);
-    
+
     // Zapisz czas ostatniej udanej synchronizacji
     lastSuccessfulSync = endTime;
-    
+
     console.log(
       `[SYNC] [${formatTimeInTimezone(
         endTime

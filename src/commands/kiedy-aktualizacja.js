@@ -4,7 +4,10 @@ const {
   PermissionFlagsBits,
   MessageFlags,
 } = require("discord.js");
-const { isSyncRunning, getLastSyncTime } = require("../scripts/data-sync-scheduler");
+const {
+  isSyncRunning,
+  getLastSyncTime,
+} = require("../scripts/data-sync-scheduler");
 const { checkUserPermissions } = require("../utils/permissions");
 require("dotenv").config({
   path: require("path").join(__dirname, "../../.env"),
@@ -64,7 +67,7 @@ module.exports = {
     const localTime = formatTimeInTimezone(now);
     const nextSync = getNextScheduledTime();
     const lastSync = getLastSyncTime();
-    const lastSyncText = lastSync 
+    const lastSyncText = lastSync
       ? formatTimeInTimezone(lastSync)
       : "Brak danych (bot nie wykonał jeszcze synchronizacji)";
     const syncStatus = isSyncRunning()

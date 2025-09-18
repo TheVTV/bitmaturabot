@@ -50,10 +50,11 @@ async function checkUserPermissions(interaction, commandName) {
     "grupa",
     "kiedy-aktualizacja",
     "dodaj-szkopul-id",
+    "zgłoś-nieobecność",
   ];
 
   // Komendy dla prowadzących i wyżej
-  const teacherCommands = ["prowadzący", "synchronizuj-dane"];
+  const teacherCommands = ["prowadzący", "synchronizuj-dane", "potwierdź-usprawiedliwienie"];
 
   // Komendy tylko dla adminów
   const adminCommands = [
