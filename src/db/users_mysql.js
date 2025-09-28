@@ -27,20 +27,53 @@ async function loadUsers() {
 
       if (hasEncryptedColumns) {
         // Nowy sposób - zaszyfrowane kolumny
-        [rows] = await connection.execute(
-          "SELECT email_encrypted, email_search_hash, group_number, fullname_encrypted, discord_id_encrypted, szkopul_id_encrypted, szkopul_id_search_hash FROM users ORDER BY id"
+        // Sprawdź które kolumny istnieją
+        const hasIndeksEncrypted = columnNames.includes(
+          "numer_indeksu_encrypted"
         );
+        const hasSzkopulEncrypted = columnNames.includes(
+          "szkopul_id_encrypted"
+        );
+
+        if (hasIndeksEncrypted) {
+          [rows] = await connection.execute(
+            "SELECT email_encrypted, email_search_hash, group_number, fullname_encrypted, discord_id_encrypted, numer_indeksu_encrypted, numer_indeksu_search_hash FROM users ORDER BY id"
+          );
+        } else if (hasSzkopulEncrypted) {
+          // Fallback do starych kolumn szkopul
+          [rows] = await connection.execute(
+            "SELECT email_encrypted, email_search_hash, group_number, fullname_encrypted, discord_id_encrypted, szkopul_id_encrypted, szkopul_id_search_hash FROM users ORDER BY id"
+          );
+        } else {
+          [rows] = await connection.execute(
+            "SELECT email_encrypted, email_search_hash, group_number, fullname_encrypted, discord_id_encrypted FROM users ORDER BY id"
+          );
+        }
       } else {
         // Stary sposób - niezaszyfrowane kolumny (wsteczna kompatybilność)
-        [rows] = await connection.execute(
-          "SELECT email, group_number, fullname, discord_id, szkopul_id FROM users ORDER BY id"
-        );
+        const hasIndeks = columnNames.includes("numer_indeksu");
+        const hasSzkopul = columnNames.includes("szkopul_id");
+
+        if (hasIndeks) {
+          [rows] = await connection.execute(
+            "SELECT email, group_number, fullname, discord_id, numer_indeksu FROM users ORDER BY id"
+          );
+        } else if (hasSzkopul) {
+          // Fallback do starych kolumn szkopul
+          [rows] = await connection.execute(
+            "SELECT email, group_number, fullname, discord_id, szkopul_id FROM users ORDER BY id"
+          );
+        } else {
+          [rows] = await connection.execute(
+            "SELECT email, group_number, fullname, discord_id FROM users ORDER BY id"
+          );
+        }
       }
 
       usersCache.clear();
 
       for (const row of rows) {
-        let email, fullname, discordId, szkopulId;
+        let email, fullname, discordId, numerIndeksu, szkopulId;
 
         if (hasEncryptedColumns) {
           // Odszyfruj dane
@@ -50,6 +83,11 @@ async function loadUsers() {
             : null;
           discordId = row.discord_id_encrypted
             ? decryptData(row.discord_id_encrypted)
+            : null;
+
+          // Preferuj numer_indeksu nad szkopul_id
+          numerIndeksu = row.numer_indeksu_encrypted
+            ? decryptData(row.numer_indeksu_encrypted)
             : null;
           szkopulId = row.szkopul_id_encrypted
             ? decryptData(row.szkopul_id_encrypted)
@@ -64,6 +102,7 @@ async function loadUsers() {
               group: row.group_number.trim(),
               fullname: fullname ? fullname.trim() : null,
               discordId: discordId,
+              numerIndeksu: numerIndeksu,
               szkopulId: szkopulId,
             });
           }
@@ -72,7 +111,10 @@ async function loadUsers() {
           email = row.email;
           fullname = row.fullname;
           discordId = row.discord_id;
-          szkopulId = row.szkopul_id;
+
+          // Preferuj numer_indeksu nad szkopul_id
+          numerIndeksu = row.numer_indeksu || null;
+          szkopulId = row.szkopul_id || null;
 
           if (email) {
             usersCache.set(email.toLowerCase().trim(), {
@@ -80,6 +122,7 @@ async function loadUsers() {
               group: row.group_number.trim(),
               fullname: fullname ? fullname.trim() : null,
               discordId: discordId,
+              numerIndeksu: numerIndeksu,
               szkopulId: szkopulId,
             });
           }
@@ -135,7 +178,18 @@ async function getSzkopulIdByEmail(email) {
   return userData ? userData.szkopulId : null;
 }
 
-async function addUser(email, groupNumber, fullname = null, discordId = null) {
+async function getNumerIndeksuByEmail(email) {
+  const userData = await getUserByEmail(email);
+  return userData ? userData.numerIndeksu : null;
+}
+
+async function addUser(
+  email,
+  groupNumber,
+  fullname = null,
+  discordId = null,
+  numerIndeksu = null
+) {
   try {
     const connection = await getConnection();
 
@@ -159,22 +213,37 @@ async function addUser(email, groupNumber, fullname = null, discordId = null) {
         const discordIdEncrypted = discordId
           ? encryptData(discordId.toString())
           : null;
+        const indeksEncrypted = numerIndeksu
+          ? encryptData(numerIndeksu.toString())
+          : null;
+        const indeksSearchHash = numerIndeksu
+          ? generateSearchHash(numerIndeksu.toString())
+          : null;
 
         // Sprawdź czy jest stara kolumna email (NOT NULL)
         const hasOldEmailColumn = columnNames.find((col) => col === "email");
+        const hasIndeksColumn = columnNames.includes("numer_indeksu");
+        const hasEncryptedIndeksColumn = columnNames.includes(
+          "numer_indeksu_encrypted"
+        );
 
         if (hasOldEmailColumn) {
           // Tabela ma starą i nową strukturę - wypełnij obie
-          await connection.execute(
-            `INSERT INTO users (email, email_encrypted, email_search_hash, group_number, fullname, fullname_encrypted, discord_id, discord_id_encrypted) 
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?) 
-             ON DUPLICATE KEY UPDATE 
-             group_number = VALUES(group_number), 
-             fullname = VALUES(fullname),
-             fullname_encrypted = VALUES(fullname_encrypted), 
-             discord_id = VALUES(discord_id),
-             discord_id_encrypted = VALUES(discord_id_encrypted)`,
-            [
+          let query, params;
+
+          if (hasEncryptedIndeksColumn) {
+            // Z zaszyfrowaną kolumną indeksu
+            query = `INSERT INTO users (email, email_encrypted, email_search_hash, group_number, fullname, fullname_encrypted, discord_id, discord_id_encrypted, numer_indeksu_encrypted, numer_indeksu_search_hash) 
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) 
+                     ON DUPLICATE KEY UPDATE 
+                     group_number = VALUES(group_number), 
+                     fullname = VALUES(fullname),
+                     fullname_encrypted = VALUES(fullname_encrypted), 
+                     discord_id = VALUES(discord_id),
+                     discord_id_encrypted = VALUES(discord_id_encrypted),
+                     numer_indeksu_encrypted = VALUES(numer_indeksu_encrypted),
+                     numer_indeksu_search_hash = VALUES(numer_indeksu_search_hash)`;
+            params = [
               email.trim().toLowerCase(), // stara kolumna
               emailEncrypted,
               emailSearchHash,
@@ -183,43 +252,132 @@ async function addUser(email, groupNumber, fullname = null, discordId = null) {
               fullnameEncrypted,
               discordId, // stara kolumna
               discordIdEncrypted,
-            ]
-          );
+              indeksEncrypted,
+              indeksSearchHash,
+            ];
+          } else if (hasIndeksColumn) {
+            // Z niezaszyfrowaną kolumną indeksu
+            query = `INSERT INTO users (email, email_encrypted, email_search_hash, group_number, fullname, fullname_encrypted, discord_id, discord_id_encrypted, numer_indeksu) 
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) 
+                     ON DUPLICATE KEY UPDATE 
+                     group_number = VALUES(group_number), 
+                     fullname = VALUES(fullname),
+                     fullname_encrypted = VALUES(fullname_encrypted), 
+                     discord_id = VALUES(discord_id),
+                     discord_id_encrypted = VALUES(discord_id_encrypted),
+                     numer_indeksu = VALUES(numer_indeksu)`;
+            params = [
+              email.trim().toLowerCase(), // stara kolumna
+              emailEncrypted,
+              emailSearchHash,
+              String(groupNumber).trim(),
+              fullname ? fullname.trim() : null, // stara kolumna
+              fullnameEncrypted,
+              discordId, // stara kolumna
+              discordIdEncrypted,
+              numerIndeksu,
+            ];
+          } else {
+            // Bez kolumny indeksu (stary format)
+            query = `INSERT INTO users (email, email_encrypted, email_search_hash, group_number, fullname, fullname_encrypted, discord_id, discord_id_encrypted) 
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?) 
+                     ON DUPLICATE KEY UPDATE 
+                     group_number = VALUES(group_number), 
+                     fullname = VALUES(fullname),
+                     fullname_encrypted = VALUES(fullname_encrypted), 
+                     discord_id = VALUES(discord_id),
+                     discord_id_encrypted = VALUES(discord_id_encrypted)`;
+            params = [
+              email.trim().toLowerCase(), // stara kolumna
+              emailEncrypted,
+              emailSearchHash,
+              String(groupNumber).trim(),
+              fullname ? fullname.trim() : null, // stara kolumna
+              fullnameEncrypted,
+              discordId, // stara kolumna
+              discordIdEncrypted,
+            ];
+          }
+
+          await connection.execute(query, params);
         } else {
           // Tylko nowa struktura
-          await connection.execute(
-            `INSERT INTO users (email_encrypted, email_search_hash, group_number, fullname_encrypted, discord_id_encrypted) 
-             VALUES (?, ?, ?, ?, ?) 
-             ON DUPLICATE KEY UPDATE 
-             group_number = VALUES(group_number), 
-             fullname_encrypted = VALUES(fullname_encrypted), 
-             discord_id_encrypted = VALUES(discord_id_encrypted)`,
-            [
+          let query, params;
+
+          if (hasEncryptedIndeksColumn) {
+            // Z zaszyfrowaną kolumną indeksu
+            query = `INSERT INTO users (email_encrypted, email_search_hash, group_number, fullname_encrypted, discord_id_encrypted, numer_indeksu_encrypted, numer_indeksu_search_hash) 
+                     VALUES (?, ?, ?, ?, ?, ?, ?) 
+                     ON DUPLICATE KEY UPDATE 
+                     group_number = VALUES(group_number), 
+                     fullname_encrypted = VALUES(fullname_encrypted), 
+                     discord_id_encrypted = VALUES(discord_id_encrypted),
+                     numer_indeksu_encrypted = VALUES(numer_indeksu_encrypted),
+                     numer_indeksu_search_hash = VALUES(numer_indeksu_search_hash)`;
+            params = [
               emailEncrypted,
               emailSearchHash,
               String(groupNumber).trim(),
               fullnameEncrypted,
               discordIdEncrypted,
-            ]
-          );
+              indeksEncrypted,
+              indeksSearchHash,
+            ];
+          } else {
+            // Bez kolumny indeksu lub z niezaszyfrowaną
+            query = `INSERT INTO users (email_encrypted, email_search_hash, group_number, fullname_encrypted, discord_id_encrypted) 
+                     VALUES (?, ?, ?, ?, ?) 
+                     ON DUPLICATE KEY UPDATE 
+                     group_number = VALUES(group_number), 
+                     fullname_encrypted = VALUES(fullname_encrypted), 
+                     discord_id_encrypted = VALUES(discord_id_encrypted)`;
+            params = [
+              emailEncrypted,
+              emailSearchHash,
+              String(groupNumber).trim(),
+              fullnameEncrypted,
+              discordIdEncrypted,
+            ];
+          }
+
+          await connection.execute(query, params);
         }
       } else {
         // Stary sposób - bez szyfrowania (wsteczna kompatybilność)
-        await connection.execute(
-          "INSERT INTO users (email, group_number, fullname, discord_id) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE group_number = VALUES(group_number), fullname = VALUES(fullname), discord_id = VALUES(discord_id)",
-          [
-            email.trim().toLowerCase(),
-            String(groupNumber).trim(),
-            fullname ? fullname.trim() : null,
-            discordId,
-          ]
-        );
+        const hasIndeksColumn = columnNames.includes("numer_indeksu");
+
+        if (hasIndeksColumn) {
+          // Z kolumną numer_indeksu
+          await connection.execute(
+            "INSERT INTO users (email, group_number, fullname, discord_id, numer_indeksu) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE group_number = VALUES(group_number), fullname = VALUES(fullname), discord_id = VALUES(discord_id), numer_indeksu = VALUES(numer_indeksu)",
+            [
+              email.trim().toLowerCase(),
+              String(groupNumber).trim(),
+              fullname ? fullname.trim() : null,
+              discordId,
+              numerIndeksu,
+            ]
+          );
+        } else {
+          // Bez kolumny numer_indeksu (stary format)
+          await connection.execute(
+            "INSERT INTO users (email, group_number, fullname, discord_id) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE group_number = VALUES(group_number), fullname = VALUES(fullname), discord_id = VALUES(discord_id)",
+            [
+              email.trim().toLowerCase(),
+              String(groupNumber).trim(),
+              fullname ? fullname.trim() : null,
+              discordId,
+            ]
+          );
+        }
       }
 
       console.log(
         `[DB] Dodano/zaktualizowano użytkownika: ${email} -> grupa ${groupNumber}${
           discordId ? ` (Discord: ${discordId})` : ""
-        }${hasEncryptedColumns ? " (zaszyfrowane)" : ""}`
+        }${numerIndeksu ? ` (Indeks: ${numerIndeksu})` : ""}${
+          hasEncryptedColumns ? " (zaszyfrowane)" : ""
+        }`
       );
 
       // Odśwież cache
@@ -251,12 +409,14 @@ async function importUsersFromText(textContent) {
       try {
         const parts = line.split(";").map((part) => part.trim());
 
-        if (parts.length !== 3) {
-          results.errors.push(`Nieprawidłowy format linii: ${line}`);
+        if (parts.length !== 4) {
+          results.errors.push(
+            `Nieprawidłowy format linii (oczekiwano: Imię Nazwisko;email;grupa;numer_indeksu): ${line}`
+          );
           continue;
         }
 
-        const [fullname, email, groupNumber] = parts;
+        const [fullname, email, groupNumber, numerIndeksu] = parts;
 
         if (!email.includes("@")) {
           results.errors.push(`Nieprawidłowy email: ${email}`);
@@ -268,12 +428,20 @@ async function importUsersFromText(textContent) {
           continue;
         }
 
+        // Walidacja numeru indeksu
+        if (!numerIndeksu || !/^[A-Za-z0-9]+$/.test(numerIndeksu)) {
+          results.errors.push(
+            `Nieprawidłowy numer indeksu (tylko litery i cyfry): ${numerIndeksu}`
+          );
+          continue;
+        }
+
         // Sprawdź czy użytkownik już istnieje (używając cache)
         const existingUser = await getUserByEmail(email);
         const userExists = existingUser !== null;
 
-        // Użyj funkcji addUser, która obsługuje szyfrowanie i nową strukturę
-        await addUser(email, groupNumber, fullname, null);
+        // Użyj funkcji addUser z numerem indeksu
+        await addUser(email, groupNumber, fullname, null, numerIndeksu);
 
         if (userExists) {
           results.updated++;
@@ -559,6 +727,7 @@ async function getUsersByGroup(groupNumber) {
           fullname: userData.fullname,
           group: userData.group,
           discordId: userData.discordId,
+          numerIndeksu: userData.numerIndeksu,
           szkopulId: userData.szkopulId,
         });
       }
@@ -595,7 +764,11 @@ async function getAllUsers() {
         name: userData.fullname, // używamy 'name' zamiast 'fullname' dla spójności
         fullname: userData.fullname,
         group_number: parseInt(userData.group) || null,
-        discord_id: userData.discordId,
+        group: parseInt(userData.group) || null, // dodaj też 'group' dla spójności
+        discordId: userData.discordId, // Poprawna nazwa pola
+        discord_id: userData.discordId, // Zachowaj też starą nazwę dla kompatybilności
+        numerIndeksu: userData.numerIndeksu,
+        szkopulId: userData.szkopulId,
         szkopul_id: userData.szkopulId,
       });
     }
@@ -618,6 +791,99 @@ async function getAllUsers() {
 }
 
 // Usuń użytkownika na podstawie Discord ID
+async function updateUserIndeks(email, numerIndeksu) {
+  try {
+    const connection = await getConnection();
+
+    try {
+      // Sprawdź czy mamy nowe kolumny zaszyfrowane
+      const [columns] = await connection.execute(`
+        SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS 
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users'
+      `);
+
+      const columnNames = columns.map((col) => col.COLUMN_NAME);
+      const hasEncryptedColumns = columnNames.includes(
+        "numer_indeksu_encrypted"
+      );
+
+      let result;
+
+      if (hasEncryptedColumns) {
+        // Nowy sposób - z szyfrowaniem
+        // Znajdź użytkownika po email (zaszyfrowanym)
+        const [users] = await connection.execute(
+          "SELECT id, email_encrypted FROM users WHERE email_encrypted IS NOT NULL"
+        );
+
+        let userIdToUpdate = null;
+        for (const user of users) {
+          try {
+            const decryptedEmail = decryptData(user.email_encrypted);
+            if (decryptedEmail.toLowerCase() === email.toLowerCase()) {
+              userIdToUpdate = user.id;
+              break;
+            }
+          } catch (decryptError) {
+            continue;
+          }
+        }
+
+        if (userIdToUpdate) {
+          const indeksEncrypted = encryptData(numerIndeksu.toString());
+          const indeksSearchHash = generateSearchHash(numerIndeksu.toString());
+
+          [result] = await connection.execute(
+            "UPDATE users SET numer_indeksu_encrypted = ?, numer_indeksu_search_hash = ? WHERE id = ?",
+            [indeksEncrypted, indeksSearchHash, userIdToUpdate]
+          );
+        } else {
+          // Fallback do starego systemu
+          if (columnNames.includes("email")) {
+            const indeksEncrypted = numerIndeksu
+              ? encryptData(numerIndeksu.toString())
+              : null;
+            const indeksSearchHash = numerIndeksu
+              ? generateSearchHash(numerIndeksu.toString())
+              : null;
+
+            [result] = await connection.execute(
+              "UPDATE users SET numer_indeksu_encrypted = ?, numer_indeksu_search_hash = ? WHERE LOWER(email) = LOWER(?)",
+              [indeksEncrypted, indeksSearchHash, email]
+            );
+          }
+        }
+      } else {
+        // Stary sposób - bez szyfrowania
+        [result] = await connection.execute(
+          "UPDATE users SET numer_indeksu = ? WHERE LOWER(email) = LOWER(?)",
+          [numerIndeksu, email]
+        );
+      }
+
+      if (result && result.affectedRows > 0) {
+        console.log(
+          `[DB] Zaktualizowano numer indeksu dla email ${email}: ${numerIndeksu}${
+            hasEncryptedColumns ? " (zaszyfrowane)" : ""
+          }`
+        );
+
+        // Odśwież cache
+        await loadUsers();
+        return true;
+      } else {
+        console.log(`[DB] Nie znaleziono użytkownika z emailem: ${email}`);
+        return false;
+      }
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error("[DB] Błąd aktualizacji numeru indeksu:", error);
+    throw error;
+  }
+}
+
 async function removeUserByDiscordId(discordId) {
   try {
     const connection = await getConnection();
@@ -707,6 +973,7 @@ module.exports = {
   getFullnameByEmail,
   getUserByEmail,
   getSzkopulIdByEmail,
+  getNumerIndeksuByEmail,
   getSzkopulIdByDiscordId,
   loadUsers,
   addUser,
@@ -719,4 +986,5 @@ module.exports = {
   getAllUsers,
   updateUserGroup,
   removeUserByDiscordId,
+  updateUserIndeks,
 };

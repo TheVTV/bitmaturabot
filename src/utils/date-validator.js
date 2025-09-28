@@ -23,14 +23,16 @@ async function authorize() {
 async function getGroupDates(groupNumber) {
   try {
     if (!SPREADSHEET_ID) {
-      console.error("SPREADSHEET_ID nie jest ustawiony w zmiennych środowiskowych");
+      console.error(
+        "SPREADSHEET_ID nie jest ustawiony w zmiennych środowiskowych"
+      );
       return [];
     }
 
     const authClient = await authorize();
     const sheets = google.sheets({ version: "v4", auth: authClient });
     const sheetName = `Grupa${groupNumber}`;
-    
+
     // Pobierz wiersz 21 od kolumny C (gdzie zaczynają się daty zajęć)
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
@@ -38,23 +40,31 @@ async function getGroupDates(groupNumber) {
     });
 
     const dates = response.data.values ? response.data.values[0] || [] : [];
-    
+
     // Filtruj i normalizuj daty - obsługuj zarówno format D-M-YYYY jak i DD-MM-YYYY
-    const validDates = dates.filter(date => {
-      if (!date || typeof date !== 'string') return false;
-      // Sprawdź czy data pasuje do formatu D-M-YYYY lub DD-MM-YYYY
-      return /^\d{1,2}-\d{1,2}-\d{4}$/.test(date.trim());
-    }).map(date => {
-      // Normalizuj do formatu DD-MM-YYYY
-      const trimmedDate = date.trim();
-      const [day, month, year] = trimmedDate.split('-');
-      const normalizedDate = `${day.padStart(2, '0')}-${month.padStart(2, '0')}-${year}`;
-      return normalizedDate;
-    });
+    const validDates = dates
+      .filter((date) => {
+        if (!date || typeof date !== "string") return false;
+        // Sprawdź czy data pasuje do formatu D-M-YYYY lub DD-MM-YYYY
+        return /^\d{1,2}-\d{1,2}-\d{4}$/.test(date.trim());
+      })
+      .map((date) => {
+        // Normalizuj do formatu DD-MM-YYYY
+        const trimmedDate = date.trim();
+        const [day, month, year] = trimmedDate.split("-");
+        const normalizedDate = `${day.padStart(2, "0")}-${month.padStart(
+          2,
+          "0"
+        )}-${year}`;
+        return normalizedDate;
+      });
 
     return validDates;
   } catch (error) {
-    console.error(`Błąd podczas pobierania dat dla grupy ${groupNumber}:`, error);
+    console.error(
+      `Błąd podczas pobierania dat dla grupy ${groupNumber}:`,
+      error
+    );
     return [];
   }
 }
@@ -73,23 +83,24 @@ async function validateAbsenceDate(inputDate, groupNumber) {
       isInFuture: false,
       hasClasses: false,
       nearestDates: [],
-      error: "Nieprawidłowy format daty. Użyj formatu DD-MM-YYYY (np. 19-09-2025)"
+      error:
+        "Nieprawidłowy format daty. Użyj formatu DD-MM-YYYY (np. 19-09-2025)",
     };
   }
 
   const cleanDate = inputDate.trim();
-  
+
   // Sprawdź czy data jest w przyszłości lub dzisiaj
-  const [day, month, year] = cleanDate.split('-').map(Number);
+  const [day, month, year] = cleanDate.split("-").map(Number);
   const inputDateObj = new Date(year, month - 1, day); // month-1 bo Date używa 0-indexowanych miesięcy
   const today = new Date();
   today.setHours(0, 0, 0, 0); // Ustaw na początek dnia
-  
+
   const isInFuture = inputDateObj >= today;
 
   // Pobierz daty z arkusza dla grupy
   const groupDates = await getGroupDates(groupNumber);
-  
+
   // Jeśli nie udało się pobrać dat z arkusza, zwróć informację o błędzie
   if (groupDates.length === 0) {
     return {
@@ -98,7 +109,7 @@ async function validateAbsenceDate(inputDate, groupNumber) {
       hasClasses: false,
       nearestDates: [],
       inputDate: cleanDate,
-      error: `Nie udało się pobrać harmonogramu zajęć dla grupy ${groupNumber}. Skontaktuj się z prowadzącym.`
+      error: `Nie udało się pobrać harmonogramu zajęć dla grupy ${groupNumber}. Skontaktuj się z prowadzącym.`,
     };
   }
 
@@ -112,7 +123,7 @@ async function validateAbsenceDate(inputDate, groupNumber) {
     isInFuture,
     hasClasses,
     nearestDates,
-    inputDate: cleanDate
+    inputDate: cleanDate,
   };
 }
 
@@ -132,7 +143,7 @@ async function validateAbsenceDateFromFields(day, month, year, groupNumber) {
       isInFuture: false,
       hasClasses: false,
       nearestDates: [],
-      error: "Wszystkie pola daty są obowiązkowe (dzień, miesiąc, rok)"
+      error: "Wszystkie pola daty są obowiązkowe (dzień, miesiąc, rok)",
     };
   }
 
@@ -147,7 +158,7 @@ async function validateAbsenceDateFromFields(day, month, year, groupNumber) {
       isInFuture: false,
       hasClasses: false,
       nearestDates: [],
-      error: "Dzień, miesiąc i rok muszą być liczbami"
+      error: "Dzień, miesiąc i rok muszą być liczbami",
     };
   }
 
@@ -158,7 +169,7 @@ async function validateAbsenceDateFromFields(day, month, year, groupNumber) {
       isInFuture: false,
       hasClasses: false,
       nearestDates: [],
-      error: "Dzień musi być z zakresu 1-31"
+      error: "Dzień musi być z zakresu 1-31",
     };
   }
 
@@ -168,7 +179,7 @@ async function validateAbsenceDateFromFields(day, month, year, groupNumber) {
       isInFuture: false,
       hasClasses: false,
       nearestDates: [],
-      error: "Miesiąc musi być z zakresu 1-12"
+      error: "Miesiąc musi być z zakresu 1-12",
     };
   }
 
@@ -178,24 +189,30 @@ async function validateAbsenceDateFromFields(day, month, year, groupNumber) {
       isInFuture: false,
       hasClasses: false,
       nearestDates: [],
-      error: "Rok musi być z zakresu 2020-2030"
+      error: "Rok musi być z zakresu 2020-2030",
     };
   }
 
   // Sprawdź czy data jest prawidłowa (czy istnieje)
   const dateObj = new Date(yearNum, monthNum - 1, dayNum);
-  if (dateObj.getFullYear() !== yearNum || dateObj.getMonth() !== monthNum - 1 || dateObj.getDate() !== dayNum) {
+  if (
+    dateObj.getFullYear() !== yearNum ||
+    dateObj.getMonth() !== monthNum - 1 ||
+    dateObj.getDate() !== dayNum
+  ) {
     return {
       isValid: false,
       isInFuture: false,
       hasClasses: false,
       nearestDates: [],
-      error: "Podana data nie istnieje w kalendarzu"
+      error: "Podana data nie istnieje w kalendarzu",
     };
   }
 
   // Stwórz sformatowaną datę DD-MM-YYYY
-  const formattedDate = `${dayNum.toString().padStart(2, '0')}-${monthNum.toString().padStart(2, '0')}-${yearNum}`;
+  const formattedDate = `${dayNum.toString().padStart(2, "0")}-${monthNum
+    .toString()
+    .padStart(2, "0")}-${yearNum}`;
 
   // Sprawdź czy data jest w przyszłości lub dzisiaj
   const today = new Date();
@@ -204,7 +221,7 @@ async function validateAbsenceDateFromFields(day, month, year, groupNumber) {
 
   // Pobierz daty z arkusza dla grupy
   const groupDates = await getGroupDates(groupNumber);
-  
+
   // Jeśli nie udało się pobrać dat z arkusza, zwróć informację o błędzie
   if (groupDates.length === 0) {
     return {
@@ -213,7 +230,7 @@ async function validateAbsenceDateFromFields(day, month, year, groupNumber) {
       hasClasses: false,
       nearestDates: [],
       inputDate: formattedDate,
-      error: `Nie udało się pobrać harmonogramu zajęć dla grupy ${groupNumber}. Skontaktuj się z prowadzącym.`
+      error: `Nie udało się pobrać harmonogramu zajęć dla grupy ${groupNumber}. Skontaktuj się z prowadzącym.`,
     };
   }
 
@@ -227,7 +244,7 @@ async function validateAbsenceDateFromFields(day, month, year, groupNumber) {
     isInFuture,
     hasClasses,
     nearestDates,
-    inputDate: formattedDate
+    inputDate: formattedDate,
   };
 }
 
@@ -242,19 +259,19 @@ function findNearestDates(dates, limit = 5) {
   today.setHours(0, 0, 0, 0);
 
   const futureDates = dates
-    .map(dateStr => {
-      const [day, month, year] = dateStr.split('-').map(Number);
+    .map((dateStr) => {
+      const [day, month, year] = dateStr.split("-").map(Number);
       const dateObj = new Date(year, month - 1, day);
       return {
         dateStr,
         dateObj,
-        diff: dateObj - today
+        diff: dateObj - today,
       };
     })
-    .filter(item => item.diff >= 0) // Tylko daty z dzisiaj i przyszłości
+    .filter((item) => item.diff >= 0) // Tylko daty z dzisiaj i przyszłości
     .sort((a, b) => a.diff - b.diff) // Sortuj od najbliższej
     .slice(0, limit)
-    .map(item => item.dateStr);
+    .map((item) => item.dateStr);
 
   return futureDates;
 }
@@ -265,8 +282,8 @@ function findNearestDates(dates, limit = 5) {
  * @returns {string} - Data w formacie DD-MM-YYYY
  */
 function formatDateToDDMMYYYY(date) {
-  const day = String(date.getDate()).padStart(2, '0');
-  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
   const year = date.getFullYear();
   return `${day}-${month}-${year}`;
 }
@@ -276,5 +293,5 @@ module.exports = {
   validateAbsenceDate,
   validateAbsenceDateFromFields,
   findNearestDates,
-  formatDateToDDMMYYYY
+  formatDateToDDMMYYYY,
 };

@@ -6,23 +6,27 @@ module.exports = {
   async execute(interaction, client) {
     // Handle modal submissions
     if (interaction.isModalSubmit()) {
-      if (interaction.customId.startsWith('absence_report_')) {
-        const { handleAbsenceReportModal } = require('../utils/absence-handler');
+      if (interaction.customId.startsWith("absence_report_")) {
+        const {
+          handleAbsenceReportModal,
+        } = require("../utils/absence-handler");
         try {
           await handleAbsenceReportModal(interaction);
         } catch (error) {
           console.error("Błąd podczas obsługi zgłoszenia nieobecności:", error);
-          
+
           // Lepsze obsługi błędów dla modal submission
           try {
             if (!interaction.replied && !interaction.deferred) {
               await interaction.reply({
-                content: "❌ Wystąpił błąd podczas przetwarzania zgłoszenia. Spróbuj ponownie za chwilę.",
+                content:
+                  "❌ Wystąpił błąd podczas przetwarzania zgłoszenia. Spróbuj ponownie za chwilę.",
                 flags: MessageFlags.Ephemeral,
               });
             } else {
               await interaction.editReply({
-                content: "❌ Wystąpił błąd podczas przetwarzania zgłoszenia. Spróbuj ponownie za chwilę.",
+                content:
+                  "❌ Wystąpił błąd podczas przetwarzania zgłoszenia. Spróbuj ponownie za chwilę.",
               });
             }
           } catch (replyError) {
@@ -68,16 +72,24 @@ module.exports = {
       await command.execute(interaction);
     } catch (error) {
       console.error(error);
-      if (interaction.deferred || interaction.replied) {
-        await interaction.followUp({
-          content: "Wystąpił błąd podczas wykonywania komendy.",
-          flags: MessageFlags.Ephemeral,
-        });
-      } else {
-        await interaction.reply({
-          content: "Wystąpił błąd podczas wykonywania komendy.",
-          flags: MessageFlags.Ephemeral,
-        });
+      try {
+        if (interaction.deferred) {
+          await interaction.editReply({
+            content: "Wystąpił błąd podczas wykonywania komendy.",
+          });
+        } else if (interaction.replied) {
+          await interaction.followUp({
+            content: "Wystąpił błąd podczas wykonywania komendy.",
+            flags: MessageFlags.Ephemeral,
+          });
+        } else {
+          await interaction.reply({
+            content: "Wystąpił błąd podczas wykonywania komendy.",
+            flags: MessageFlags.Ephemeral,
+          });
+        }
+      } catch (replyError) {
+        console.error("Nie można wysłać komunikatu o błędzie:", replyError);
       }
     }
   },

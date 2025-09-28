@@ -4,8 +4,10 @@ const { getAdminRoleName } = require("../db/config_mysql");
 
 module.exports = {
   data: new SlashCommandBuilder()
-    .setName("dodaj-uczniów")
-    .setDescription("Dodaj uczniów z pliku .txt (wymaga roli administratora)")
+    .setName("dodaj-indeks")
+    .setDescription(
+      "Dodaj numery indeksów z pliku .txt (wymaga roli administratora)"
+    )
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .setContexts([0]),
   async execute(interaction) {
@@ -24,12 +26,12 @@ module.exports = {
     }
 
     try {
-      // Utwórz prywatny wątek dla importu uczniów
+      // Utwórz prywatny wątek dla importu numerów indeksów
       const thread = await interaction.channel.threads.create({
-        name: `📚 Import uczniów - ${interaction.user.username}`,
+        name: `🎓 Import indeksów - ${interaction.user.username}`,
         autoArchiveDuration: 60, // 1 godzina
         type: 12, // ChannelType.PrivateThread
-        reason: "Import uczniów z pliku .txt",
+        reason: "Import numerów indeksów z pliku .txt",
       });
 
       // Dodaj użytkownika do wątku
@@ -37,7 +39,7 @@ module.exports = {
 
       // Ustaw stan oczekujący na plik
       addPending(interaction.user.id, {
-        type: "import_users",
+        type: "import_indeks",
         guildId: interaction.guild.id,
         threadId: thread.id,
         userId: interaction.user.id,
@@ -46,38 +48,37 @@ module.exports = {
 
       // Odpowiedź na komendę
       await interaction.reply({
-        content: `✅ Utworzono prywatny wątek ${thread} do importu uczniów!`,
+        content: `✅ Utworzono prywatny wątek ${thread} do importu numerów indeksów!`,
         flags: 64, // MessageFlags.Ephemeral
       });
 
       // Wyślij instrukcje do wątku
       await thread.send({
-        content: `👋 **Witaj w wątku importu uczniów!**
+        content: `👋 **Witaj w wątku importu numerów indeksów!**
 
 📋 **Instrukcje:**
-1. Przygotuj plik **.txt** z listą uczniów
+1. Przygotuj plik **.txt** z listą numerów indeksów
 2. **Prześlij plik** do tego wątku
-3. Bot automatycznie zaimportuje uczniów
+3. Bot automatycznie zaktualizuje numery indeksów
 
 📝 **Format pliku:**
 \`\`\`
-Jan Kowalski;jan.kowalski@example.com;1;123456A
-Anna Nowak;anna.nowak@example.com;2;789012B
-Piotr Wiśniewski;piotr.wisniewski@example.com;1;345678C
+jan.kowalski@example.com;123456A
+anna.nowak@example.com;789012B
+piotr.wisniewski@example.com;345678C
 \`\`\`
 
 ⚠️ **Zasady:**
 • Każda osoba w **osobnej linii**
 • Dane oddzielone **średnikami** (;)
-• Format: **Imię Nazwisko;email;grupa;numer_indeksu**
+• Format: **email;numer_indeksu**
 • Email musi zawierać **@**
-• Numer grupy to **liczba** (1, 2, 3...)
 • Numer indeksu: **litery i cyfry** (np. 123456A, AB12345)
 
 🤖 Wyślij plik, a ja zajmę się resztą!`,
       });
     } catch (error) {
-      console.error("[DODAJ-UCZNIÓW] Błąd tworzenia wątku:", error);
+      console.error("[DODAJ-INDEKS] Błąd tworzenia wątku:", error);
 
       await interaction.reply({
         content:

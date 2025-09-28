@@ -5,7 +5,9 @@ const { getAdminRoleName, getTeacherRoleName } = require("../db/config_mysql");
 module.exports = {
   data: new SlashCommandBuilder()
     .setName("grupa")
-    .setDescription("Wyświetl listę uczniów z wybranej grupy (dla nauczycieli i administratorów)")
+    .setDescription(
+      "Wyświetl listę uczniów z wybranej grupy (dla nauczycieli i administratorów)"
+    )
     .addIntegerOption((option) =>
       option
         .setName("numer")
@@ -21,14 +23,16 @@ module.exports = {
     // Sprawdź czy użytkownik ma rolę administratora, nauczyciela lub uprawnienia ManageRoles
     const adminRoleName = await getAdminRoleName(interaction.guild.id);
     const teacherRoleName = await getTeacherRoleName(interaction.guild.id);
-    
+
     const hasAdminRole = interaction.member.roles.cache.some(
       (role) => role.name === adminRoleName
     );
     const hasTeacherRole = interaction.member.roles.cache.some(
       (role) => role.name === teacherRoleName
     );
-    const hasManageRolesPermissions = interaction.member.permissions.has(PermissionFlagsBits.ManageRoles);
+    const hasManageRolesPermissions = interaction.member.permissions.has(
+      PermissionFlagsBits.ManageRoles
+    );
 
     if (!hasAdminRole && !hasTeacherRole && !hasManageRolesPermissions) {
       return interaction.reply({
@@ -59,6 +63,9 @@ module.exports = {
       users.forEach((user, index) => {
         userList += `${index + 1}. **${user.fullname}**\n`;
         userList += `   📧 ${user.email}\n`;
+        if (user.numerIndeksu) {
+          userList += `   🆔 Indeks: ${user.numerIndeksu}\n`;
+        }
         if (user.discordId) {
           userList += `   🎮 <@${user.discordId}>\n`;
         }

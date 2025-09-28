@@ -17,11 +17,11 @@ const activeAbsenceThreads = new Map();
  * Obsługuje przesłanie formularza zgłoszenia nieobecności
  */
 async function handleAbsenceReportModal(interaction) {
-  const reason = interaction.fields.getTextInputValue('absence_reason');
-  const day = interaction.fields.getTextInputValue('absence_day');
-  const month = interaction.fields.getTextInputValue('absence_month');
-  const year = interaction.fields.getTextInputValue('absence_year');
-  
+  const reason = interaction.fields.getTextInputValue("absence_reason");
+  const day = interaction.fields.getTextInputValue("absence_day");
+  const month = interaction.fields.getTextInputValue("absence_month");
+  const year = interaction.fields.getTextInputValue("absence_year");
+
   await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
   try {
@@ -38,7 +38,10 @@ async function handleAbsenceReportModal(interaction) {
     }
 
     // Sprawdź uprawnienia użytkownika (pełne sprawdzenie)
-    const permissions = await checkUserPermissions(interaction, "zgłoś-nieobecność");
+    const permissions = await checkUserPermissions(
+      interaction,
+      "zgłoś-nieobecność"
+    );
     if (!permissions.canUseCommand) {
       await interaction.editReply({
         content: `❌ **Brak dostępu:** ${permissions.reason}`,
@@ -50,14 +53,20 @@ async function handleAbsenceReportModal(interaction) {
     const userData = await getUserByDiscordId(interaction.user.id);
     if (!userData) {
       await interaction.editReply({
-        content: "❌ Nie jesteś zarejestrowany w systemie. Użyj `/rejestruj` aby się zarejestrować.",
+        content:
+          "❌ Nie jesteś zarejestrowany w systemie. Użyj `/rejestruj` aby się zarejestrować.",
       });
       return;
     }
 
     // Walidacja daty nieobecności z trzech pól
-    const dateValidation = await validateAbsenceDateFromFields(day, month, year, userData.group);
-    
+    const dateValidation = await validateAbsenceDateFromFields(
+      day,
+      month,
+      year,
+      userData.group
+    );
+
     if (!dateValidation.isValid) {
       await interaction.editReply({
         content: `❌ ${dateValidation.error}`,
@@ -74,21 +83,23 @@ async function handleAbsenceReportModal(interaction) {
 
     if (!dateValidation.hasClasses) {
       let responseMessage;
-      
+
       if (dateValidation.error) {
         // Błąd systemowy - nie można pobrać danych z arkusza
         responseMessage = `❌ ${dateValidation.error}`;
       } else {
         // Brak zajęć na podaną datę
         responseMessage = `❌ Nie ma ćwiczeń o dacie ${dateValidation.inputDate}.`;
-        
+
         if (dateValidation.nearestDates.length > 0) {
-          responseMessage += `\n\n📅 **Najbliższe daty z ćwiczeniami:**\n${dateValidation.nearestDates.map(d => `• ${d}`).join('\n')}`;
+          responseMessage += `\n\n📅 **Najbliższe daty z ćwiczeniami:**\n${dateValidation.nearestDates
+            .map((d) => `• ${d}`)
+            .join("\n")}`;
         } else {
           responseMessage += `\n\nBrak zaplanowanych ćwiczeń dla grupy ${userData.group}.`;
         }
       }
-      
+
       await interaction.editReply({
         content: responseMessage,
       });
@@ -97,8 +108,8 @@ async function handleAbsenceReportModal(interaction) {
 
     // Znajdź prowadzącego grupy
     const teachers = await getAllTeachers();
-    const teacher = teachers.find(t => t.group_id == userData.group);
-    
+    const teacher = teachers.find((t) => t.group_id == userData.group);
+
     if (!teacher) {
       await interaction.editReply({
         content: "❌ Nie znaleziono prowadzącego dla Twojej grupy.",
@@ -107,24 +118,27 @@ async function handleAbsenceReportModal(interaction) {
     }
 
     // Sprawdź czy prowadzący istnieje na serwerze
-    const teacherMember = await interaction.guild.members.fetch(teacher.discord_id).catch(() => null);
+    const teacherMember = await interaction.guild.members
+      .fetch(teacher.discord_id)
+      .catch(() => null);
     if (!teacherMember) {
       await interaction.editReply({
-        content: "❌ Prowadzący nie jest dostępny na serwerze. Skontaktuj się z administratorem.",
+        content:
+          "❌ Prowadzący nie jest dostępny na serwerze. Skontaktuj się z administratorem.",
       });
       return;
     }
 
-
-
     // Utwórz prywatny wątek bezpośrednio w kanale gdzie została wywołana komenda (tak jak w rejestracji)
-    const threadName = `Nieobecność - ${userData.fullname || interaction.user.displayName} (Grupa ${userData.group})`;
-    
+    const threadName = `Nieobecność - ${
+      userData.fullname || interaction.user.displayName
+    } (Grupa ${userData.group})`;
+
     const thread = await interaction.channel.threads.create({
       name: threadName,
       type: ChannelType.PrivateThread,
       invitable: false,
-      reason: 'Zgłoszenie nieobecności ucznia'
+      reason: "Zgłoszenie nieobecności ucznia",
     });
 
     // Dodaj użytkownika i prowadzącego do wątku (tak jak w rejestracji)
@@ -140,21 +154,29 @@ async function handleAbsenceReportModal(interaction) {
       group: userData.group,
       studentFullName: userData.fullname || interaction.user.displayName,
       absenceDate: dateValidation.inputDate,
-      reason: reason
+      reason: reason,
     });
 
     // Utwórz embed z informacjami o zgłoszeniu
     const embed = new EmbedBuilder()
       .setTitle("📋 Zgłoszenie nieobecności")
-      .setColor(0xFFA500)
+      .setColor(0xffa500)
       .addFields(
-        { name: "👤 Uczeń", value: `<@${interaction.user.id}> (${userData.fullname || interaction.user.displayName})`, inline: true },
+        {
+          name: "👤 Uczeń",
+          value: `<@${interaction.user.id}> (${
+            userData.fullname || interaction.user.displayName
+          })`,
+          inline: true,
+        },
         { name: "📚 Grupa", value: userData.group, inline: true },
         { name: "📅 Data", value: dateValidation.inputDate, inline: true },
         { name: "📝 Powód nieobecności", value: reason, inline: false }
       )
       .setTimestamp()
-      .setFooter({ text: "Prowadzący może odpowiedzieć 'Potwierdzam usprawiedliwienie' lub użyć komendy /potwierdź-usprawiedliwienie" });
+      .setFooter({
+        text: "Prowadzący może odpowiedzieć 'Potwierdzam usprawiedliwienie' lub użyć komendy /potwierdź-usprawiedliwienie",
+      });
 
     // Wyślij wiadomość w prywatnym wątku
     await thread.send({
@@ -169,20 +191,26 @@ async function handleAbsenceReportModal(interaction) {
 
     // Nasłuchuj na wiadomości w wątku lub opuszczenie wątku przez prowadzącego
     setupThreadMonitoring(thread, teacher.discord_id, interaction.user.id);
-
   } catch (error) {
     console.error("Błąd podczas tworzenia zgłoszenia nieobecności:", error);
-    
+
     // Sprawdź typ błędu i wyślij odpowiedni komunikat
     let errorMessage = "❌ Wystąpił błąd podczas tworzenia zgłoszenia.";
-    
-    if (error.code === 'ECONNRESET' || error.code === 'ENOTFOUND' || error.code === 'ETIMEDOUT') {
-      errorMessage = "❌ Problem z połączeniem do bazy danych. Spróbuj ponownie za chwilę.";
+
+    if (
+      error.code === "ECONNRESET" ||
+      error.code === "ENOTFOUND" ||
+      error.code === "ETIMEDOUT"
+    ) {
+      errorMessage =
+        "❌ Problem z połączeniem do bazy danych. Spróbuj ponownie za chwilę.";
     } else if (error.code === 50001) {
-      errorMessage = "❌ Bot nie ma wystarczających uprawnień do utworzenia wątku. Skontaktuj się z administratorem.";
+      errorMessage =
+        "❌ Bot nie ma wystarczających uprawnień do utworzenia wątku. Skontaktuj się z administratorem.";
     } else if (error.code === 50013) {
-      errorMessage = "❌ Brak uprawnień do wykonania tej operacji. Skontaktuj się z administratorem.";
-    } else if (error.message && error.message.includes('interaction')) {
+      errorMessage =
+        "❌ Brak uprawnień do wykonania tej operacji. Skontaktuj się z administratorem.";
+    } else if (error.message && error.message.includes("interaction")) {
       errorMessage = "❌ Sesja wygasła. Spróbuj ponownie.";
     }
 
@@ -201,16 +229,19 @@ async function handleAbsenceReportModal(interaction) {
  */
 function setupThreadMonitoring(thread, teacherId, studentId) {
   const client = thread.client;
-  
+
   // Obsługa wiadomości w wątku
   const messageHandler = async (message) => {
     if (message.channel.id !== thread.id) return;
     if (message.author.bot) return;
-    
+
     // Sprawdź czy prowadzący pisze wiadomość o potwierdzeniu usprawiedliwienia
     if (message.author.id === teacherId) {
       const content = message.content.toLowerCase();
-      if (content.includes('potwierdzam usprawiedliwienie') || content.includes('usprawiedliwione')) {
+      if (
+        content.includes("potwierdzam usprawiedliwienie") ||
+        content.includes("usprawiedliwione")
+      ) {
         await handleAbsenceApproval(thread, teacherId, studentId, message);
         return;
       }
@@ -225,14 +256,14 @@ function setupThreadMonitoring(thread, teacherId, studentId) {
     }
   };
 
-  client.on('messageCreate', messageHandler);
-  client.on('threadMembersUpdate', threadMembersUpdateHandler);
+  client.on("messageCreate", messageHandler);
+  client.on("threadMembersUpdate", threadMembersUpdateHandler);
 
   // Usuń nasłuchiwacze po 24 godzinach (zabezpieczenie)
   setTimeout(() => {
-    client.off('messageCreate', messageHandler);
-    client.off('threadMembersUpdate', threadMembersUpdateHandler);
-    
+    client.off("messageCreate", messageHandler);
+    client.off("threadMembersUpdate", threadMembersUpdateHandler);
+
     // Usuń z aktywnych jeśli nadal istnieje
     if (activeAbsenceThreads.has(thread.id)) {
       activeAbsenceThreads.delete(thread.id);
@@ -243,34 +274,42 @@ function setupThreadMonitoring(thread, teacherId, studentId) {
 /**
  * Obsługuje potwierdzenie usprawiedliwienia przez prowadzącego
  */
-async function handleAbsenceApproval(thread, teacherId, studentId, approvalMessage) {
-
+async function handleAbsenceApproval(
+  thread,
+  teacherId,
+  studentId,
+  approvalMessage
+) {
   try {
     // Pobierz dane zgłoszenia na podstawie threadId
     let threadData = activeAbsenceThreads.get(thread.id);
-    
+
     // Jeśli nie ma danych (np. po restarcie bota), spróbuj odzyskać z wątku
     if (!threadData) {
       console.log(`Próba odzyskania danych zgłoszenia z wątku ${thread.id}`);
       threadData = await recoverAbsenceDataFromThread(thread);
-      
+
       if (threadData) {
         // Przywróć dane do mapy
         activeAbsenceThreads.set(thread.id, threadData);
         console.log(`Odzyskano dane zgłoszenia dla wątku ${thread.id}`);
       }
     }
-    
+
     if (!threadData) {
-      console.error(`Nie można znaleźć ani odzyskać danych ucznia dla wątku ${thread.id}`);
-      
+      console.error(
+        `Nie można znaleźć ani odzyskać danych ucznia dla wątku ${thread.id}`
+      );
+
       const errorEmbed = new EmbedBuilder()
         .setTitle("❌ Błąd")
-        .setColor(0xFF0000)
-        .setDescription("Nie można znaleźć danych zgłoszenia dla tego wątku. Możliwe przyczyny:\n• Bot został zrestartowany\n• Wątek już został obsłużony\n• Błąd systemu\n\nSpróbuj ponownie lub skontaktuj się z administratorem.")
+        .setColor(0xff0000)
+        .setDescription(
+          "Nie można znaleźć danych zgłoszenia dla tego wątku. Możliwe przyczyny:\n• Bot został zrestartowany\n• Wątek już został obsłużony\n• Błąd systemu\n\nSpróbuj ponownie lub skontaktuj się z administratorem."
+        )
         .addFields({
           name: "🔍 Diagnostyka",
-          value: `Thread ID: ${thread.id}\nTeacher ID: ${teacherId}\nAktywne wątki: ${activeAbsenceThreads.size}`
+          value: `Thread ID: ${thread.id}\nTeacher ID: ${teacherId}\nAktywne wątki: ${activeAbsenceThreads.size}`,
         })
         .setTimestamp();
 
@@ -279,11 +318,15 @@ async function handleAbsenceApproval(thread, teacherId, studentId, approvalMessa
     }
 
     // Oznacz jako zatwierdzone
-  threadData.approvedByTeacher = true;
+    threadData.approvedByTeacher = true;
 
     // Zapisz usprawiedliwienie w arkuszu Google Sheets
     let sheetResult = null;
-    if (threadData.studentFullName && threadData.absenceDate && threadData.group) {
+    if (
+      threadData.studentFullName &&
+      threadData.absenceDate &&
+      threadData.group
+    ) {
       try {
         sheetResult = await writeAbsenceToSheet(
           threadData.group,
@@ -291,14 +334,17 @@ async function handleAbsenceApproval(thread, teacherId, studentId, approvalMessa
           threadData.absenceDate
         );
       } catch (sheetError) {
-        console.error("Błąd podczas zapisywania usprawiedliwienia w arkuszu:", sheetError);
+        console.error(
+          "Błąd podczas zapisywania usprawiedliwienia w arkuszu:",
+          sheetError
+        );
       }
     }
 
     // Utwórz embed z potwierdzeniem
     const embed = new EmbedBuilder()
       .setTitle("✅ Usprawiedliwienie potwierdzone")
-      .setColor(0x00FF00)
+      .setColor(0x00ff00)
       .setDescription("Prowadzący potwierdził usprawiedliwienie nieobecności.")
       .addFields(
         { name: "👤 Uczeń", value: threadData.studentFullName, inline: true },
@@ -310,16 +356,16 @@ async function handleAbsenceApproval(thread, teacherId, studentId, approvalMessa
     // Dodaj informację o zapisie w arkuszu
     if (sheetResult) {
       if (sheetResult.success) {
-        embed.addFields({ 
-          name: "📊 Arkusz", 
-          value: `✅ ${sheetResult.message}`, 
-          inline: false 
+        embed.addFields({
+          name: "📊 Arkusz",
+          value: `✅ ${sheetResult.message}`,
+          inline: false,
         });
       } else {
-        embed.addFields({ 
-          name: "📊 Arkusz", 
-          value: `❌ ${sheetResult.message}`, 
-          inline: false 
+        embed.addFields({
+          name: "📊 Arkusz",
+          value: `❌ ${sheetResult.message}`,
+          inline: false,
         });
       }
     }
@@ -336,7 +382,9 @@ async function handleAbsenceApproval(thread, teacherId, studentId, approvalMessa
       await student.send({ content: dmMessage });
     } catch (error) {
       // Nie można wysłać DM
-      console.log("Nie można wysłać DM do ucznia o potwierdzeniu usprawiedliwienia");
+      console.log(
+        "Nie można wysłać DM do ucznia o potwierdzeniu usprawiedliwienia"
+      );
     }
 
     // Usuń z aktywnych wątków
@@ -350,9 +398,11 @@ async function handleAbsenceApproval(thread, teacherId, studentId, approvalMessa
         console.error("Nie można zarchiwizować wątku:", error);
       }
     }, 5000);
-
   } catch (error) {
-    console.error("Błąd podczas obsługi potwierdzenia usprawiedliwienia:", error);
+    console.error(
+      "Błąd podczas obsługi potwierdzenia usprawiedliwienia:",
+      error
+    );
   }
 }
 
@@ -363,8 +413,10 @@ async function handleThreadClosed(thread, teacherId, studentId) {
   try {
     const embed = new EmbedBuilder()
       .setTitle("⚠️ Prowadzący opuścił wątek")
-      .setColor(0xFF6600)
-      .setDescription("Prowadzący opuścił wątek nieobecności. Sprawa może pozostać nierozstrzygnięta.")
+      .setColor(0xff6600)
+      .setDescription(
+        "Prowadzący opuścił wątek nieobecności. Sprawa może pozostać nierozstrzygnięta."
+      )
       .setTimestamp();
 
     // Spróbuj wysłać wiadomość w wątku jeśli możliwe
@@ -384,7 +436,9 @@ async function handleThreadClosed(thread, teacherId, studentId) {
       });
     } catch (error) {
       // Nie można wysłać DM
-      console.log("Nie można wysłać DM do ucznia o opuszczeniu wątku przez prowadzącego");
+      console.log(
+        "Nie można wysłać DM do ucznia o opuszczeniu wątku przez prowadzącego"
+      );
     }
 
     // Usuń z aktywnych wątków
@@ -398,7 +452,6 @@ async function handleThreadClosed(thread, teacherId, studentId) {
         console.error("Nie można zarchiwizować wątku:", error);
       }
     }, 5000);
-
   } catch (error) {
     console.error("Błąd podczas obsługi zamknięcia wątku:", error);
   }
@@ -411,19 +464,19 @@ async function recoverAbsenceDataFromThread(thread) {
   try {
     // Pobierz ostatnie wiadomości z wątku
     const messages = await thread.messages.fetch({ limit: 10 });
-    
+
     // Znajdź wiadomość z embedem zgłoszenia nieobecności
     for (const message of messages.values()) {
       if (message.embeds.length > 0) {
         const embed = message.embeds[0];
-        
+
         // Sprawdź czy to embed zgłoszenia nieobecności
         if (embed.title === "📋 Zgłoszenie nieobecności") {
           const fields = embed.fields;
           let studentName = null;
           let grupa = null;
           let data = null;
-          
+
           // Wyciągnij dane z pól embeda
           for (const field of fields) {
             if (field.name === "👤 Uczeń") {
@@ -438,17 +491,19 @@ async function recoverAbsenceDataFromThread(thread) {
               data = field.value;
             }
           }
-          
+
           // Znajdź studentId z wzmianki w wiadomości
           let studentId = null;
           const userMentions = message.content.match(/<@(\d+)>/);
           if (userMentions) {
             studentId = userMentions[1];
           }
-          
+
           if (studentName && grupa && data && studentId) {
-            console.log(`Odzyskano dane: ${studentName}, grupa ${grupa}, data ${data}`);
-            
+            console.log(
+              `Odzyskano dane: ${studentName}, grupa ${grupa}, data ${data}`
+            );
+
             return {
               threadId: thread.id,
               teacherId: null, // Nie można odzyskać z embeda
@@ -457,13 +512,13 @@ async function recoverAbsenceDataFromThread(thread) {
               group: grupa,
               studentFullName: studentName,
               absenceDate: data,
-              reason: "Odzyskano po restarcie bota"
+              reason: "Odzyskano po restarcie bota",
             };
           }
         }
       }
     }
-    
+
     return null;
   } catch (error) {
     console.error("Błąd podczas odzyskiwania danych z wątku:", error);

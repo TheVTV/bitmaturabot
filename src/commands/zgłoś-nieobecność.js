@@ -67,21 +67,28 @@ module.exports = {
       const thirdActionRow = new ActionRowBuilder().addComponents(monthInput);
       const fourthActionRow = new ActionRowBuilder().addComponents(yearInput);
 
-      modal.addComponents(firstActionRow, secondActionRow, thirdActionRow, fourthActionRow);
+      modal.addComponents(
+        firstActionRow,
+        secondActionRow,
+        thirdActionRow,
+        fourthActionRow
+      );
 
       await interaction.showModal(modal);
 
       // Wszystkie sprawdzenia (role, baza danych, prowadzący) będą wykonane w absence-handler.js
-
     } catch (error) {
       console.error("Błąd podczas tworzenia zgłoszenia nieobecności:", error);
-      
+
       // Jeśli nie można pokazać modala, spróbuj zwykłej odpowiedzi
       if (!interaction.replied && !interaction.deferred) {
-        await interaction.reply({
-          content: "❌ Wystąpił błąd podczas otwierania formularza. Spróbuj ponownie.",
-          flags: MessageFlags.Ephemeral,
-        }).catch(console.error);
+        await interaction
+          .reply({
+            content:
+              "❌ Wystąpił błąd podczas otwierania formularza. Spróbuj ponownie.",
+            flags: MessageFlags.Ephemeral,
+          })
+          .catch(console.error);
       }
     }
   },

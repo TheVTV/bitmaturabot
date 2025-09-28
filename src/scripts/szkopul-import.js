@@ -130,24 +130,35 @@ function calculateAdjustedPoints(rawPoints, userLevel, contestLevel) {
 async function getUsersFromDatabase() {
   try {
     const users = await getAllUsers();
+    const sheetsCache = await getSheetsCache();
 
     // Tworzenie mapy szkopul-id -> dane użytkownika
     const userMap = new Map();
 
     let usersWithSzkopulId = 0;
     users.forEach((user) => {
-      if (user.szkopul_id) {
-        userMap.set(user.szkopul_id.toString(), {
-          name: user.name,
-          groupNumber: user.group_number,
-          level: getUserLevel(user.group_number),
-        });
-        usersWithSzkopulId++;
+      if (user.numerIndeksu) {
+        // Znajdź szkopuł ID w cache arkuszy po numerze indeksu
+        const szkopulId = getSzkopulIdFromSheets(
+          user.numerIndeksu,
+          user.group,
+          sheetsCache
+        );
+
+        if (szkopulId) {
+          userMap.set(szkopulId.toString(), {
+            name: user.fullname,
+            groupNumber: user.group,
+            level: getUserLevel(user.group),
+            numerIndeksu: user.numerIndeksu,
+          });
+          usersWithSzkopulId++;
+        }
       }
     });
 
     console.log(
-      `[DB] Załadowano ${usersWithSzkopulId} użytkowników ze szkopul-id`
+      `[DB] Załadowano ${usersWithSzkopulId} użytkowników ze szkopul-id (z arkuszy)`
     );
 
     return userMap;
@@ -155,6 +166,31 @@ async function getUsersFromDatabase() {
     console.error("[DB] Błąd pobierania użytkowników z bazy:", error.message);
     return new Map();
   }
+}
+
+/**
+ * Funkcja do pobierania szkopuł ID z cache arkuszy po numerze indeksu
+ */
+function getSzkopulIdFromSheets(numerIndeksu, grupa, sheetsCache) {
+  if (!numerIndeksu || !grupa || !sheetsCache) return null;
+
+  const sheetName = `Grupa${grupa}`;
+  const rows = sheetsCache[sheetName] || [];
+
+  for (const row of rows) {
+    if (!row || row.length < 3) continue;
+
+    // Struktura: B=imię(0), C=numer_indeksu(1), D=szkopul_id(2)
+    const imie = String(row[0] || "").trim();
+    const numerIndeksuZArkusza = String(row[1] || "").trim();
+    const szkopulId = String(row[2] || "").trim();
+
+    if (numerIndeksuZArkusza === numerIndeksu && szkopulId) {
+      return szkopulId;
+    }
+  }
+
+  return null;
 }
 
 /**
@@ -168,44 +204,21 @@ async function authorizeGoogleSheets() {
 }
 
 /**
- * Funkcja do znajdowania użytkownika w arkuszu (skopiowana z profil.js)
+ * Funkcja do znajdowania użytkownika w arkuszu po numerze indeksu
  */
-function findUserInSheet(sheetData, fullname) {
-  if (!sheetData || !fullname) return -1;
-
-  const nameParts = fullname.toLowerCase().split(" ");
+function findUserInSheet(sheetData, numerIndeksu) {
+  if (!sheetData || !numerIndeksu) return -1;
 
   for (let i = 0; i < sheetData.length; i++) {
     const row = sheetData[i];
     if (!row || row.length < 2) continue;
 
-    const firstName = String(row[0] || "")
-      .toLowerCase()
-      .trim();
-    const lastName = String(row[1] || "")
-      .toLowerCase()
-      .trim();
+    // Struktura: B=imię(0), C=numer_indeksu(1), D=szkopul_id(2)
+    const imie = String(row[0] || "").trim();
+    const numerIndeksuZArkusza = String(row[1] || "").trim();
 
-    if (firstName && lastName) {
-      // Sprawdź czy imię z arkusza występuje w fullname
-      const hasFirstName = nameParts.includes(firstName);
-
-      // Sprawdź nazwisko - może być jako jeden ciąg lub jako części
-      let hasLastName = false;
-
-      // Przypadek 1: Nazwisko jako jeden ciąg (np. "wójcik alt")
-      const lastNameParts = lastName.split(" ");
-      if (lastNameParts.length > 1) {
-        // Sprawdź czy wszystkie części nazwiska z arkusza występują w fullname
-        hasLastName = lastNameParts.every((part) => nameParts.includes(part));
-      } else {
-        // Przypadek 2: Zwykłe nazwisko (jedna część)
-        hasLastName = nameParts.includes(lastName);
-      }
-
-      if (hasFirstName && hasLastName) {
-        return i;
-      }
+    if (numerIndeksuZArkusza === numerIndeksu) {
+      return i;
     }
   }
 
@@ -217,7 +230,7 @@ function findUserInSheet(sheetData, fullname) {
  */
 async function updateUserPointsInSheet(
   groupNumber,
-  userName,
+  numerIndeksu,
   basePoints,
   bonusPoints
 ) {
@@ -235,20 +248,33 @@ async function updateUserPointsInSheet(
     });
 
     const sheetData = response.data.values || [];
-    const userRowIndex = findUserInSheet(sheetData, userName);
+    const userRowIndex = findUserInSheet(sheetData, numerIndeksu);
+    console.log(
+      `[ARKUSZ DEBUG] Szukanie użytkownika ${numerIndeksu} w arkuszu ${sheetName}, znaleziono na indeksie: ${userRowIndex}`
+    );
 
     if (userRowIndex === -1) {
+      console.log(
+        `[ARKUSZ DEBUG] Użytkownik ${numerIndeksu} nie został znaleziony w arkuszu`
+      );
       return false;
     }
 
     // Oblicz rzeczywisty numer wiersza (dodaj 2 bo zaczynamy od B2)
     const actualRowNumber = userRowIndex + 2;
 
-    // Kolumny AL i AM to indeksy 37 i 38 (licząc od A=0)
-    const basePointsRange = `${sheetName}!AL${actualRowNumber}`;
-    const bonusPointsRange = `${sheetName}!AM${actualRowNumber}`;
+    // Kolumny przesunięte o 1 w prawo: AL->AM, AM->AN (indeksy 38 i 39)
+    const basePointsRange = `${sheetName}!AM${actualRowNumber}`;
+    const bonusPointsRange = `${sheetName}!AN${actualRowNumber}`;
 
-    // Aktualizuj punkty bazowe (kolumna AL)
+    console.log(`[ARKUSZ DEBUG] Aktualizacja punktów dla ${numerIndeksu}:`);
+    console.log(`[ARKUSZ DEBUG] - Wiersz: ${actualRowNumber}`);
+    console.log(`[ARKUSZ DEBUG] - Bazowe: ${basePointsRange} = ${basePoints}`);
+    console.log(
+      `[ARKUSZ DEBUG] - Dodatkowe: ${bonusPointsRange} = ${bonusPoints}`
+    );
+
+    // Aktualizuj punkty bazowe (kolumna AM)
     await sheets.spreadsheets.values.update({
       spreadsheetId: SPREADSHEET_ID,
       range: basePointsRange,
@@ -258,7 +284,7 @@ async function updateUserPointsInSheet(
       },
     });
 
-    // Aktualizuj punkty dodatkowe (kolumna AM)
+    // Aktualizuj punkty dodatkowe (kolumna AN)
     await sheets.spreadsheets.values.update({
       spreadsheetId: SPREADSHEET_ID,
       range: bonusPointsRange,
@@ -268,10 +294,13 @@ async function updateUserPointsInSheet(
       },
     });
 
+    console.log(
+      `[ARKUSZ DEBUG] Punkty zaktualizowane pomyślnie dla ${numerIndeksu}`
+    );
     return true;
   } catch (error) {
     console.error(
-      `[ARKUSZ] Błąd aktualizacji arkusza dla ${userName}:`,
+      `[ARKUSZ] Błąd aktualizacji arkusza dla indeksu ${numerIndeksu}:`,
       error.message
     );
     return false;
@@ -368,6 +397,7 @@ async function generateUserRankingReport() {
         name: userInfo.name,
         level: userInfo.level,
         groupNumber: userInfo.groupNumber,
+        numerIndeksu: userInfo.numerIndeksu, // Dodajemy numer indeksu
         rawPoints: {
           podstawowy: user.podstawowy,
           sredni: user.sredni,
@@ -407,7 +437,7 @@ async function generateUserRankingReport() {
       if (user.groupNumber) {
         const success = await updateUserPointsInSheet(
           user.groupNumber,
-          user.name,
+          user.numerIndeksu,
           user.basePoints,
           user.bonusPoints
         );

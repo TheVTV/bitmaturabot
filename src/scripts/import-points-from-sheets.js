@@ -32,7 +32,7 @@ async function fetchAllSheets() {
       try {
         const res = await sheets.spreadsheets.values.get({
           spreadsheetId: SPREADSHEET_ID,
-          range: `${sheetName}!B2:BF100`,
+          range: `${sheetName}!B2:BG100`,
         });
         sheetsCache[sheetName] = res.data.values || [];
         loaded++;
@@ -79,7 +79,7 @@ async function getAllUsers() {
     try {
       connection = await getConnection();
       const [rows] = await connection.execute(
-        `SELECT fullname_encrypted, discord_id_encrypted, group_number FROM ${USERS_TABLE}`
+        `SELECT fullname_encrypted, discord_id_encrypted, group_number, numer_indeksu_encrypted FROM ${USERS_TABLE}`
       );
       return rows.map((row) => ({
         fullname: row.fullname_encrypted
@@ -89,6 +89,9 @@ async function getAllUsers() {
           ? decryptData(row.discord_id_encrypted)
           : null,
         group: row.group_number,
+        numerIndeksu: row.numer_indeksu_encrypted
+          ? decryptData(row.numer_indeksu_encrypted)
+          : null,
       }));
     } catch (error) {
       console.error(
@@ -163,16 +166,19 @@ async function importPointsFromCache(guildId) {
     let changed = 0;
     let errors = [];
     for (const user of users) {
-      if (!user.fullname || !user.discordId || !user.group) continue;
+      if (!user.numerIndeksu || !user.discordId || !user.group) continue;
       total++;
       const sheetName = `Grupa${user.group}`;
       const rows = sheetsCache[sheetName] || [];
       let found = false;
       for (const row of rows) {
-        const [imie, nazwisko] = [row[0], row[1]];
-        if (!imie || !nazwisko) continue;
-        if (user.fullname.includes(imie) && user.fullname.includes(nazwisko)) {
-          let punkty = row[56];
+        // Struktura: B=imię(0), C=numer_indeksu(1), D=szkopul_id(2), E+=obecności(3+)
+        const imie = String(row[0] || "").trim();
+        const numerIndeksuZArkusza = String(row[1] || "").trim();
+        if (!numerIndeksuZArkusza) continue;
+        if (numerIndeksuZArkusza === user.numerIndeksu) {
+          // Kolumny obecności przesunięte o 1 w prawo - punkty były w row[56], teraz są w row[57]
+          let punkty = row[57];
           if (typeof punkty === "string") {
             punkty = punkty.replace(",", ".");
           }
@@ -186,11 +192,12 @@ async function importPointsFromCache(guildId) {
             await updateUserPoints(user.discordId, punkty, guildId);
           } catch (err) {
             console.error(
-              `[POINTS] Błąd aktualizacji punktów dla ${user.fullname}:`,
+              `[POINTS] Błąd aktualizacji punktów dla ${user.fullname} (indeks: ${user.numerIndeksu}):`,
               err.message
             );
             errors.push({
               fullname: user.fullname,
+              numerIndeksu: user.numerIndeksu,
               discordId: user.discordId,
               error: err.message || String(err),
             });
@@ -202,6 +209,7 @@ async function importPointsFromCache(guildId) {
       if (!found) {
         errors.push({
           fullname: user.fullname,
+          numerIndeksu: user.numerIndeksu,
           discordId: user.discordId,
           error: "Nie znaleziono w arkuszu",
         });
@@ -214,7 +222,7 @@ async function importPointsFromCache(guildId) {
     if (errors.length > 0) {
       report += `\nBłędy:\n`;
       for (const e of errors) {
-        report += `- ${e.fullname} (${e.discordId}): ${e.error}\n`;
+        report += `- ${e.fullname} [${e.numerIndeksu}] (${e.discordId}): ${e.error}\n`;
       }
     }
     console.log(report);

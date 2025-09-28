@@ -4,6 +4,7 @@ const {
   takePending,
   getPendingGuildId,
   hasPendingType,
+  addPending,
 } = require("../state/pending");
 const {
   getGroupByEmail,
@@ -13,6 +14,7 @@ const {
   updateUserDiscordId,
   getUserByEmail,
   updateUserGroup,
+  getUsersByGroup,
 } = require("../db/users_mysql");
 const { addUserPoints, setUserPoints } = require("../db/points");
 const {
@@ -99,6 +101,26 @@ module.exports = {
       message.channel.name.startsWith("📚 Import uczniów -")
     ) {
       await handleUserImportMessage(message, client);
+      return;
+    }
+
+    // Obsługa importu numerów indeksów w prywatnych wątkach
+    if (
+      message.channel.isThread() &&
+      message.channel.name.startsWith("🎓 Import indeksów -") &&
+      hasPendingType(userId, "import_indeks")
+    ) {
+      await handleIndeksImportMessage(message, client);
+      return;
+    }
+
+    // Obsługa importu szkopuł ID w prywatnych wątkach
+    if (
+      message.channel.isThread() &&
+      message.channel.name.startsWith("📝 Szkopuł ID -") &&
+      hasPendingType(userId, "import_szkopul_ids")
+    ) {
+      await handleSzkopulIdImportMessage(message, client);
       return;
     }
 
@@ -902,6 +924,436 @@ async function handleGroupChangeMessage(message, client) {
     // Wyczyść stan w przypadku błędu
     message.client.groupChangeStates?.delete(userId);
     takePending(userId);
+  }
+}
+
+async function processSzkopulIdFile(fileContent, teacherGroupId) {
+  const lines = fileContent
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+
+  const results = {
+    total: lines.length,
+    updated: 0,
+    errors: [],
+    suggestions: [],
+  };
+
+  // Pobierz wszystkich uczniów z grupy nauczyciela
+  const groupUsers = await getUsersByGroup(teacherGroupId);
+  console.log(
+    `[SZKOPUL-ID] Przetwarzam ${lines.length} linii dla grupy ${teacherGroupId}`
+  );
+  console.log(`[SZKOPUL-ID] Znaleziono ${groupUsers.length} uczniów w grupie`);
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const lineNumber = i + 1;
+
+    // Podziel linię na części
+    const parts = line.split(";");
+    if (parts.length !== 2) {
+      results.errors.push(
+        `Linia ${lineNumber}: nieprawidłowy format (oczekiwano: Imię Nazwisko;szkopul_id)`
+      );
+      continue;
+    }
+
+    const fullName = parts[0].trim();
+    const szkopulId = parts[1].trim();
+
+    // Walidacja szkopuł ID
+    if (!szkopulId || szkopulId.length === 0) {
+      results.errors.push(
+        `Linia ${lineNumber}: brak szkopuł ID dla "${fullName}"`
+      );
+      continue;
+    }
+
+    // Znajdź użytkownika po imieniu i nazwisku w grupie
+    const user = groupUsers.find(
+      (u) =>
+        u.fullname &&
+        u.fullname.toLowerCase().trim() === fullName.toLowerCase().trim()
+    );
+
+    if (!user) {
+      // Nie znaleziono dokładnego dopasowania - zasugeruj podobne
+      const suggestions = findSimilarNames(fullName, groupUsers);
+      if (suggestions.length > 0) {
+        results.suggestions.push(
+          `"${fullName}" → możliwe: ${suggestions.slice(0, 3).join(", ")}`
+        );
+      }
+      results.errors.push(
+        `Linia ${lineNumber}: nie znaleziono ucznia "${fullName}" w grupie ${teacherGroupId}`
+      );
+      continue;
+    }
+
+    // Sprawdź czy użytkownik ma Discord ID (potrzebne do aktualizacji)
+    if (!user.discordId) {
+      results.errors.push(
+        `Linia ${lineNumber}: "${fullName}" nie ma przypisanego Discord ID`
+      );
+      continue;
+    }
+
+    try {
+      // Aktualizuj szkopuł ID
+      const { updateUserSzkopulId } = require("../db/users_mysql");
+      await updateUserSzkopulId(user.discordId, szkopulId);
+      results.updated++;
+      console.log(
+        `[SZKOPUL-ID] Zaktualizowano ${fullName} (${user.discordId}) → ${szkopulId}`
+      );
+    } catch (error) {
+      console.error(`[SZKOPUL-ID] Błąd aktualizacji dla ${fullName}:`, error);
+      results.errors.push(
+        `Linia ${lineNumber}: błąd aktualizacji dla "${fullName}"`
+      );
+    }
+  }
+
+  return results;
+}
+
+function findSimilarNames(searchName, users) {
+  const searchLower = searchName.toLowerCase().trim();
+  const suggestions = [];
+
+  for (const user of users) {
+    if (!user.fullname) continue;
+
+    const userNameLower = user.fullname.toLowerCase().trim();
+
+    // Sprawdź czy nazwa zawiera część szukanej nazwy lub odwrotnie
+    if (
+      userNameLower.includes(searchLower) ||
+      searchLower.includes(userNameLower)
+    ) {
+      suggestions.push(user.fullname);
+      continue;
+    }
+
+    // Sprawdź podobieństwo - jeśli różnica w długości nie jest za duża
+    if (Math.abs(userNameLower.length - searchLower.length) <= 3) {
+      // Proste sprawdzenie podobieństwa - ile znaków jest wspólnych
+      let commonChars = 0;
+      const shorter =
+        userNameLower.length < searchLower.length ? userNameLower : searchLower;
+      const longer =
+        userNameLower.length >= searchLower.length
+          ? userNameLower
+          : searchLower;
+
+      for (let i = 0; i < shorter.length; i++) {
+        if (longer.includes(shorter[i])) {
+          commonChars++;
+        }
+      }
+
+      // Jeśli podobieństwo > 70%
+      if (commonChars / shorter.length > 0.7) {
+        suggestions.push(user.fullname);
+      }
+    }
+  }
+
+  return suggestions;
+}
+
+async function handleSzkopulIdImportMessage(message, client) {
+  const userId = message.author.id;
+  const pendingData = takePending(userId);
+
+  if (!pendingData || pendingData.type !== "import_szkopul_ids") {
+    await message.reply("❌ Nie znaleziono aktywnej sesji importu szkopuł ID.");
+    return;
+  }
+
+  try {
+    if (message.attachments.size === 0) {
+      await message.channel.send(
+        "❌ Nie znaleziono załącznika. Proszę załączyć plik .txt z danymi szkopuł ID.\n\n" +
+          "**Format pliku:**\n" +
+          "```\n" +
+          "Jan Kowalski;jkowalski123\n" +
+          "Anna Nowak;anowak456\n" +
+          "```\n" +
+          "Każda linia: `Imię Nazwisko;szkopul_id`\n\n" +
+          "💡 **Wskazówka**: Jeśli używasz polskich znaków, zapisz plik w kodowaniu UTF-8."
+      );
+
+      // Przywróć pending state
+      addPending(userId, pendingData);
+      return;
+    }
+
+    const attachment = message.attachments.first();
+    if (!attachment.name.endsWith(".txt")) {
+      await message.channel.send(
+        "❌ Nieprawidłowy format pliku. Proszę załączyć plik .txt."
+      );
+
+      // Przywróć pending state
+      addPending(userId, pendingData);
+      return;
+    }
+
+    // Pobierz zawartość pliku
+    const response = await fetch(attachment.url);
+    const fileContent = await response.text();
+
+    if (!fileContent || fileContent.trim().length === 0) {
+      await message.channel.send(
+        "❌ Plik jest pusty lub nie można go odczytać."
+      );
+
+      // Przywróć pending state
+      addPending(userId, pendingData);
+      return;
+    }
+
+    await message.channel.send(
+      "⏳ Przetwarzam szkopuł ID... To może chwilę potrwać."
+    );
+
+    // Przetwórz plik
+    const results = await processSzkopulIdFile(
+      fileContent,
+      pendingData.teacherGroupId
+    );
+
+    // Podsumowanie
+    let summary = `✅ **Import szkopuł ID zakończony!**\n\n`;
+    summary += `📊 **Statystyki:**\n`;
+    summary += `• Przetworzono linii: **${results.total}**\n`;
+    summary += `• Zaktualizowano szkopuł ID: **${results.updated}**\n`;
+    summary += `• Błędy: **${results.errors.length}**\n`;
+    summary += `• Propozycje: **${results.suggestions.length}**\n\n`;
+
+    if (results.errors.length > 0) {
+      summary += `⚠️ **Błędy:**\n`;
+      results.errors.slice(0, 10).forEach((error) => {
+        summary += `• ${error}\n`;
+      });
+      if (results.errors.length > 10) {
+        summary += `... i ${results.errors.length - 10} więcej błędów\n`;
+      }
+      summary += `\n`;
+    }
+
+    if (results.suggestions.length > 0) {
+      summary += `💡 **Sugestie dla błędnych imion:**\n`;
+      results.suggestions.slice(0, 5).forEach((suggestion) => {
+        summary += `• ${suggestion}\n`;
+      });
+      if (results.suggestions.length > 5) {
+        summary += `... i ${results.suggestions.length - 5} więcej sugestii\n`;
+      }
+      summary += `\n`;
+    }
+
+    summary += `Wątek zostanie automatycznie zamknięty.`;
+
+    await message.channel.send(summary);
+
+    // Zamknij wątek
+    setTimeout(async () => {
+      try {
+        await message.channel.setArchived(true);
+      } catch (err) {
+        console.warn("[THREAD] Nie udało się zamknąć wątku:", err.message);
+      }
+    }, 10000);
+  } catch (error) {
+    console.error("[SZKOPUL-ID-IMPORT] Błąd podczas importu:", error);
+    await message.channel.send(
+      "❌ Wystąpił błąd podczas importu szkopuł ID. Spróbuj ponownie."
+    );
+
+    // Przywróć pending state w przypadku błędu
+    addPending(userId, pendingData);
+  }
+}
+
+async function processIndeksFile(fileContent) {
+  const lines = fileContent
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+
+  const results = {
+    total: lines.length,
+    updated: 0,
+    errors: [],
+  };
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const lineNumber = i + 1;
+
+    // Podziel linię na części
+    const parts = line.split(";");
+    if (parts.length !== 2) {
+      results.errors.push(
+        `Linia ${lineNumber}: nieprawidłowy format (oczekiwano: email;numer_indeksu)`
+      );
+      continue;
+    }
+
+    const email = parts[0].trim();
+    const numerIndeksu = parts[1].trim();
+
+    // Walidacja email
+    if (!email || !email.includes("@")) {
+      results.errors.push(
+        `Linia ${lineNumber}: nieprawidłowy email "${email}"`
+      );
+      continue;
+    }
+
+    // Walidacja numeru indeksu
+    if (!numerIndeksu || numerIndeksu.length === 0) {
+      results.errors.push(
+        `Linia ${lineNumber}: brak numeru indeksu dla "${email}"`
+      );
+      continue;
+    }
+
+    // Walidacja formatu numeru indeksu (litery i cyfry)
+    if (!/^[A-Za-z0-9]+$/.test(numerIndeksu)) {
+      results.errors.push(
+        `Linia ${lineNumber}: nieprawidłowy format numeru indeksu "${numerIndeksu}" (dozwolone tylko litery i cyfry)`
+      );
+      continue;
+    }
+
+    try {
+      // Zaktualizuj numer indeksu w bazie danych
+      const { updateUserIndeks } = require("../db/users_mysql");
+      const success = await updateUserIndeks(email, numerIndeksu);
+
+      if (success) {
+        results.updated++;
+        console.log(`[INDEKS] Zaktualizowano ${email} → ${numerIndeksu}`);
+      } else {
+        results.errors.push(
+          `Linia ${lineNumber}: nie znaleziono użytkownika "${email}" w bazie`
+        );
+      }
+    } catch (error) {
+      console.error(`[INDEKS] Błąd aktualizacji dla ${email}:`, error);
+      results.errors.push(
+        `Linia ${lineNumber}: błąd aktualizacji dla "${email}"`
+      );
+    }
+  }
+
+  return results;
+}
+
+async function handleIndeksImportMessage(message, client) {
+  const userId = message.author.id;
+  const pendingData = takePending(userId);
+
+  if (!pendingData || pendingData.type !== "import_indeks") {
+    await message.reply(
+      "❌ Nie znaleziono aktywnej sesji importu numerów indeksów."
+    );
+    return;
+  }
+
+  try {
+    if (message.attachments.size === 0) {
+      await message.channel.send(
+        "❌ Nie znaleziono załącznika. Proszę załączyć plik .txt z numerami indeksów.\n\n" +
+          "**Format pliku:**\n" +
+          "```\n" +
+          "jan.kowalski@example.com;123456A\n" +
+          "anna.nowak@example.com;789012B\n" +
+          "```\n" +
+          "Każda linia: `email;numer_indeksu`\n\n" +
+          "💡 **Wskazówka**: Jeśli używasz polskich znaków, zapisz plik w kodowaniu UTF-8."
+      );
+
+      // Przywróć pending state
+      addPending(userId, pendingData);
+      return;
+    }
+
+    const attachment = message.attachments.first();
+    if (!attachment.name.endsWith(".txt")) {
+      await message.channel.send(
+        "❌ Nieprawidłowy format pliku. Proszę załączyć plik .txt."
+      );
+
+      // Przywróć pending state
+      addPending(userId, pendingData);
+      return;
+    }
+
+    // Pobierz zawartość pliku
+    const response = await fetch(attachment.url);
+    const fileContent = await response.text();
+
+    if (!fileContent || fileContent.trim().length === 0) {
+      await message.channel.send(
+        "❌ Plik jest pusty lub nie można go odczytać."
+      );
+
+      // Przywróć pending state
+      addPending(userId, pendingData);
+      return;
+    }
+
+    await message.channel.send(
+      "⏳ Przetwarzam numery indeksów... To może chwilę potrwać."
+    );
+
+    // Przetwórz plik
+    const results = await processIndeksFile(fileContent);
+
+    // Podsumowanie
+    let summary = `✅ **Import numerów indeksów zakończony!**\n\n`;
+    summary += `📊 **Statystyki:**\n`;
+    summary += `• Przetworzono linii: **${results.total}**\n`;
+    summary += `• Zaktualizowano indeksów: **${results.updated}**\n`;
+    summary += `• Błędy: **${results.errors.length}**\n\n`;
+
+    if (results.errors.length > 0) {
+      summary += `⚠️ **Błędy:**\n`;
+      results.errors.slice(0, 10).forEach((error) => {
+        summary += `• ${error}\n`;
+      });
+      if (results.errors.length > 10) {
+        summary += `... i ${results.errors.length - 10} więcej błędów\n`;
+      }
+      summary += `\n`;
+    }
+
+    summary += `Wątek zostanie automatycznie zamknięty.`;
+
+    await message.channel.send(summary);
+
+    // Zamknij wątek
+    setTimeout(async () => {
+      try {
+        await message.channel.setArchived(true);
+      } catch (err) {
+        console.warn("[THREAD] Nie udało się zamknąć wątku:", err.message);
+      }
+    }, 10000);
+  } catch (error) {
+    console.error("[INDEKS-IMPORT] Błąd podczas importu:", error);
+    await message.channel.send(
+      "❌ Wystąpił błąd podczas importu numerów indeksów. Spróbuj ponownie."
+    );
+
+    // Przywróć pending state w przypadku błędu
+    addPending(userId, pendingData);
   }
 }
 

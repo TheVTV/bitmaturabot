@@ -87,11 +87,11 @@ async function createTables() {
           group_number VARCHAR(50) NOT NULL,
           fullname_encrypted TEXT,
           discord_id_encrypted TEXT,
-          szkopul_id_encrypted TEXT,
-          szkopul_id_search_hash VARCHAR(64),
+          numer_indeksu_encrypted TEXT,
+          numer_indeksu_search_hash VARCHAR(64),
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           INDEX idx_email_search (email_search_hash),
-          INDEX idx_szkopul_search (szkopul_id_search_hash)
+          INDEX idx_numer_indeksu_search (numer_indeksu_search_hash)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
       `);
       console.log("[DB] Utworzono nową tabelę users z szyfrowaniem");
@@ -116,10 +116,10 @@ async function createTables() {
           ADD COLUMN email_search_hash VARCHAR(64),
           ADD COLUMN fullname_encrypted TEXT,
           ADD COLUMN discord_id_encrypted TEXT,
-          ADD COLUMN szkopul_id_encrypted TEXT,
-          ADD COLUMN szkopul_id_search_hash VARCHAR(64),
+          ADD COLUMN numer_indeksu_encrypted TEXT,
+          ADD COLUMN numer_indeksu_search_hash VARCHAR(64),
           ADD INDEX idx_email_search (email_search_hash),
-          ADD INDEX idx_szkopul_search (szkopul_id_search_hash)
+          ADD INDEX idx_numer_indeksu_search (numer_indeksu_search_hash)
         `);
 
         // Jeśli są stare dane, ustaw email jako nullable
@@ -134,19 +134,19 @@ async function createTables() {
         );
       }
 
-      // Sprawdź czy są kolumny szkopul-id (nowa migracja)
-      if (!columnNames.includes("szkopul_id_encrypted")) {
-        console.log("[DB] Dodaję kolumny dla Szkopuł ID...");
+      // Sprawdź czy są kolumny numer_indeksu (nowa migracja)
+      if (!columnNames.includes("numer_indeksu_encrypted")) {
+        console.log("[DB] Dodaję kolumny dla numerów indeksów...");
 
         await connection.execute(`
           ALTER TABLE users 
-          ADD COLUMN szkopul_id_encrypted TEXT,
-          ADD COLUMN szkopul_id_search_hash VARCHAR(64),
-          ADD INDEX idx_szkopul_search (szkopul_id_search_hash)
+          ADD COLUMN numer_indeksu_encrypted TEXT,
+          ADD COLUMN numer_indeksu_search_hash VARCHAR(64),
+          ADD INDEX idx_numer_indeksu_search (numer_indeksu_search_hash)
         `);
 
         console.log(
-          "[DB] Dodano kolumny szkopul_id_encrypted i szkopul_id_search_hash"
+          "[DB] Dodano kolumny numer_indeksu_encrypted i numer_indeksu_search_hash"
         );
       }
     }

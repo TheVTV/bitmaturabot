@@ -40,8 +40,8 @@ function analyzeAttendance(sheetData, userRowIndex) {
   const userRow = sheetData[userRowIndex];
   const dateRow = sheetData[19]; // wiersz 21 (indeks 19) zawiera daty
 
-  // Analiza plusów z kolumny C (indeks 2)
-  const plusCell = userRow[2];
+  // Analiza plusów z kolumny D (indeks 3) - przesunięte o 1 w prawo
+  const plusCell = userRow[3];
   if (plusCell !== undefined && plusCell !== null && plusCell !== "") {
     const numericValue = parseFloat(String(plusCell).replace(",", "."));
     if (!isNaN(numericValue)) {
@@ -51,8 +51,8 @@ function analyzeAttendance(sheetData, userRowIndex) {
   }
 
   // console.log("User Row:", userRow);
-  // Kolumny E do AJ to indeksy 3 do 35 (E=4, F=5, ..., AJ=35)
-  for (let colIndex = 3; colIndex <= 34; colIndex++) {
+  // Kolumny E do AJ to teraz indeksy 4 do 36 (E=4, F=5, ..., AJ=36) - przesunięte o 1
+  for (let colIndex = 4; colIndex <= 35; colIndex++) {
     const cellValue = userRow[colIndex];
     const dateValue = dateRow ? dateRow[colIndex] : null;
 
@@ -77,8 +77,8 @@ function analyzeAttendance(sheetData, userRowIndex) {
     }
   }
 
-  // Pobierz procentową frekwencję z kolumny AK (indeks 35)
-  const attendanceRateCell = userRow[35];
+  // Pobierz procentową frekwencję z kolumny AK (teraz indeks 36) - przesunięte o 1
+  const attendanceRateCell = userRow[36];
   if (attendanceRateCell !== undefined && attendanceRateCell !== null) {
     attendance.attendanceRate = String(attendanceRateCell);
   }
@@ -104,29 +104,29 @@ function analyzeSkopul(sheetData, userRowIndex) {
 
   const userRow = sheetData[userRowIndex];
 
-  // Indeks 36: suma punktów z zadań bazowych
-  const basicTasksCell = userRow[36];
+  // Indeks 37: suma punktów z zadań bazowych (przesunięte o 1)
+  const basicTasksCell = userRow[37];
   if (basicTasksCell !== undefined && basicTasksCell !== null) {
     skopul.basicTasks =
       parseFloat(String(basicTasksCell).replace(",", ".")) || 0;
   }
 
-  // Indeks 37: suma punktów z zadań dodatkowych
-  const additionalTasksCell = userRow[37];
+  // Indeks 38: suma punktów z zadań dodatkowych (przesunięte o 1)
+  const additionalTasksCell = userRow[38];
   if (additionalTasksCell !== undefined && additionalTasksCell !== null) {
     skopul.additionalTasks =
       parseFloat(String(additionalTasksCell).replace(",", ".")) || 0;
   }
 
-  // Indeks 38: suma całkowita
-  const totalPointsCell = userRow[38];
+  // Indeks 39: suma całkowita (przesunięte o 1)
+  const totalPointsCell = userRow[39];
   if (totalPointsCell !== undefined && totalPointsCell !== null) {
     skopul.totalPoints =
       parseFloat(String(totalPointsCell).replace(",", ".")) || 0;
   }
 
-  // Indeks 39: wynik procentowy
-  const percentageCell = userRow[39];
+  // Indeks 40: wynik procentowy (przesunięte o 1)
+  const percentageCell = userRow[40];
   if (percentageCell !== undefined && percentageCell !== null) {
     skopul.percentage = String(percentageCell);
     if (!skopul.percentage.includes("%")) {
@@ -140,20 +140,19 @@ function analyzeSkopul(sheetData, userRowIndex) {
     skopul.percentageNumeric = numericValue;
   }
 
-  // Maksymalny wynik za część bazową z komórki AL21 (wiersz 20, kolumna AL = indeks 37)
-  // AL21 to wiersz 21 (indeks 20), kolumna AL (indeks 37)
+  // Maksymalny wynik za część bazową z komórki AM21 (wiersz 20, kolumna AM = indeks 38) - przesunięte o 1
+  // AM21 to wiersz 21 (indeks 20), kolumna AM (indeks 38)
   if (
     sheetData[19] &&
-    sheetData[19][36] !== undefined &&
-    sheetData[19][36] !== null
+    sheetData[19][37] !== undefined &&
+    sheetData[19][37] !== null
   ) {
     skopul.maxBasicPoints =
-      parseFloat(String(sheetData[19][36]).replace(",", ".")) || 0;
+      parseFloat(String(sheetData[19][37]).replace(",", ".")) || 0;
   }
 
-  // Punkty za szkopuła z kolumny BB (indeks 53)
-  // BB = kolumna 54, więc indeks 53
-  const skopulPointsCell = userRow[52];
+  // Punkty za szkopuła z kolumny BB (indeks 53) - poprawiony indeks
+  const skopulPointsCell = userRow[53];
   if (skopulPointsCell !== undefined && skopulPointsCell !== null) {
     skopul.skopulPoints =
       parseFloat(String(skopulPointsCell).replace(",", ".")) || 0;
@@ -177,8 +176,8 @@ function analyzeKolokwia(sheetData, userRowIndex) {
 
   const userRow = sheetData[userRowIndex];
 
-  // Kolumny AP - AW to indeksy 40 - 47 (AP=40, AQ=41, ..., AW=47)
-  for (let i = 40; i <= 47; i++) {
+  // Kolumny AQ - AX to indeksy 41 - 48 (AQ=41, AR=42, ..., AX=48) - przesunięte o 1
+  for (let i = 41; i <= 48; i++) {
     const testCell = userRow[i];
     let testResult = "";
 
@@ -198,8 +197,8 @@ function analyzeKolokwia(sheetData, userRowIndex) {
     kolokwia.tests.push(testResult);
   }
 
-  // Wynik procentowy z kolumny AX (indeks 49)
-  const percentageCell = userRow[48];
+  // Wynik procentowy z kolumny AY (indeks 49) - przesunięte o 1
+  const percentageCell = userRow[49];
   if (percentageCell !== undefined && percentageCell !== null) {
     kolokwia.percentage = String(percentageCell);
     if (!kolokwia.percentage.includes("%")) {
@@ -213,8 +212,8 @@ function analyzeKolokwia(sheetData, userRowIndex) {
     kolokwia.percentageNumeric = numericValue;
   }
 
-  // Punkty z kolumny BC (indeks 54)
-  const totalPointsCell = userRow[53];
+  // Punkty z kolumny BD (indeks 54) - przesunięte o 1
+  const totalPointsCell = userRow[54];
   if (totalPointsCell !== undefined && totalPointsCell !== null) {
     kolokwia.totalPoints =
       parseFloat(String(totalPointsCell).replace(",", ".")) || 0;
@@ -238,8 +237,8 @@ function analyzeMatury(sheetData, userRowIndex) {
 
   const userRow = sheetData[userRowIndex];
 
-  // Kolumna AX (pierwsza matura) - indeks 49
-  const matura1Cell = userRow[49];
+  // Kolumna AY (pierwsza matura) - indeks 50 (przesunięte o 1)
+  const matura1Cell = userRow[50];
   if (matura1Cell !== undefined && matura1Cell !== null && matura1Cell !== "") {
     let percentageText = String(matura1Cell);
     if (!percentageText.includes("%")) {
@@ -255,8 +254,8 @@ function analyzeMatury(sheetData, userRowIndex) {
     }
   }
 
-  // Kolumna AY (druga matura) - indeks 50
-  const matura2Cell = userRow[50];
+  // Kolumna AZ (druga matura) - indeks 51 (przesunięte o 1)
+  const matura2Cell = userRow[51];
   if (matura2Cell !== undefined && matura2Cell !== null && matura2Cell !== "") {
     let percentageText = String(matura2Cell);
     if (!percentageText.includes("%")) {
@@ -272,8 +271,8 @@ function analyzeMatury(sheetData, userRowIndex) {
     }
   }
 
-  // Punkty łączne z kolumny BD (indeks 55)
-  const totalPointsCell = userRow[55];
+  // Punkty łączne z kolumny BE (indeks 56) - przesunięte o 1
+  const totalPointsCell = userRow[56];
   if (totalPointsCell !== undefined && totalPointsCell !== null) {
     matury.totalPoints =
       parseFloat(String(totalPointsCell).replace(",", ".")) || 0;
@@ -305,8 +304,8 @@ function analyzePodsumowanie(sheetData, userRowIndex) {
 
   const userRow = sheetData[userRowIndex];
 
-  // Kolumna AZ (frekwencja procentowa) - indeks 51
-  const frekwencjaCell = userRow[51];
+  // Kolumna BA (frekwencja procentowa) - indeks 52 (przesunięte o 1)
+  const frekwencjaCell = userRow[52];
   if (frekwencjaCell !== undefined && frekwencjaCell !== null) {
     podsumowanie.frekwencja = String(frekwencjaCell);
     if (!podsumowanie.frekwencja.includes("%")) {
@@ -317,16 +316,16 @@ function analyzePodsumowanie(sheetData, userRowIndex) {
       0;
   }
 
-  // Kolumna BA (szkopuł) - indeks 52
-  const skopulCell = userRow[52];
+  // Kolumna BB (szkopuł) - indeks 53 (przesunięte o 1)
+  const skopulCell = userRow[53];
   if (skopulCell !== undefined && skopulCell !== null) {
     const skopulValue = parseFloat(String(skopulCell).replace(",", ".")) || 0;
     podsumowanie.skopul = `${skopulValue} / 30`;
     podsumowanie.skopulNumeric = skopulValue;
   }
 
-  // Kolumna BB (kolokwia) - indeks 53
-  const kolokwiaCell = userRow[53];
+  // Kolumna BC (kolokwia) - indeks 54 (przesunięte o 1)
+  const kolokwiaCell = userRow[54];
   if (kolokwiaCell !== undefined && kolokwiaCell !== null) {
     const kolokwiaValue =
       parseFloat(String(kolokwiaCell).replace(",", ".")) || 0;
@@ -334,8 +333,8 @@ function analyzePodsumowanie(sheetData, userRowIndex) {
     podsumowanie.kolokwiaNumeric = kolokwiaValue;
   }
 
-  // Kolumna BC (aktywność) - indeks 54
-  const aktywnoscCell = userRow[54];
+  // Kolumna BD (aktywność) - indeks 55 (przesunięte o 1)
+  const aktywnoscCell = userRow[55];
   if (aktywnoscCell !== undefined && aktywnoscCell !== null) {
     const aktywnoscValue =
       parseFloat(String(aktywnoscCell).replace(",", ".")) || 0;
@@ -343,16 +342,16 @@ function analyzePodsumowanie(sheetData, userRowIndex) {
     podsumowanie.aktywnoscNumeric = aktywnoscValue;
   }
 
-  // Kolumna BD (matury) - indeks 55
-  const maturyCell = userRow[55];
+  // Kolumna BE (matury) - indeks 56 (przesunięte o 1)
+  const maturyCell = userRow[56];
   if (maturyCell !== undefined && maturyCell !== null) {
     const maturyValue = parseFloat(String(maturyCell).replace(",", ".")) || 0;
     podsumowanie.matury = `${maturyValue} / 25`;
     podsumowanie.maturyNumeric = maturyValue;
   }
 
-  // Kolumna BE (wynik końcowy) - indeks 56
-  const wynikKoncowyCell = userRow[56];
+  // Kolumna BF (wynik końcowy) - indeks 57 (przesunięte o 1)
+  const wynikKoncowyCell = userRow[57];
   if (wynikKoncowyCell !== undefined && wynikKoncowyCell !== null) {
     const wynikKoncowyValue =
       parseFloat(String(wynikKoncowyCell).replace(",", ".")) || 0;
@@ -365,13 +364,12 @@ function analyzePodsumowanie(sheetData, userRowIndex) {
 
 // Funkcja do tworzenia pierwszej strony (informacje podstawowe)
 function createBasicInfoPage(userData, targetUser, targetMember, sheetData) {
-  // Pobierz informacje o prowadzącym z wiersza 21 (indeks 20), kolumny A i B (indeksy 0 i 1)
+  // Pobierz informacje o prowadzącym z wiersza 21 (indeks 20), kolumna B (indeks 0 w zakresie B2:BF100)
   let teacherInfo = "Brak danych";
   if (sheetData && sheetData[20]) {
-    const teacherFirstName = sheetData[20][0] || "";
-    const teacherLastName = sheetData[20][1] || "";
-    if (teacherFirstName || teacherLastName) {
-      teacherInfo = `${teacherFirstName} ${teacherLastName}`.trim();
+    const teacherFullName = sheetData[20][0] || "";
+    if (teacherFullName) {
+      teacherInfo = teacherFullName.trim();
     }
   }
 
@@ -391,7 +389,7 @@ function createBasicInfoPage(userData, targetUser, targetMember, sheetData) {
         inline: false,
       },
       {
-        name: "� Email",
+        name: "📧 Email",
         value: userData.email || "Brak danych",
         inline: true,
       },
@@ -401,9 +399,14 @@ function createBasicInfoPage(userData, targetUser, targetMember, sheetData) {
         inline: true,
       },
       {
+        name: "🆔 Numer indeksu",
+        value: userData.numerIndeksu || "Brak danych",
+        inline: true,
+      },
+      {
         name: "👨‍🏫 Prowadzący",
         value: teacherInfo,
-        inline: true,
+        inline: false,
       }
     )
     .setTimestamp()
@@ -827,7 +830,7 @@ function createPodsumowaniePage(targetUser, podsumowanieInfo, sheetData) {
     embed.setColor(tierInfo.color);
 
     embed.addFields({
-      name: "� Wynik końcowy",
+      name: "🏆 Wynik końcowy",
       value: wynikKoncowyText,
       inline: false,
     });
@@ -842,7 +845,7 @@ function createPodsumowaniePage(targetUser, podsumowanieInfo, sheetData) {
     }
 
     embed.addFields({
-      name: "� Tier użytkownika",
+      name: "🥇 Tier użytkownika",
       value: tierText,
       inline: false,
     });
@@ -908,43 +911,19 @@ function createNavigationButtons(currentPage) {
   return [row1, row2];
 }
 
-// Funkcja do znajdowania użytkownika w arkuszu
-function findUserInSheet(sheetData, fullname) {
-  if (!sheetData || !fullname) return -1;
-
-  const nameParts = fullname.toLowerCase().split(" ");
+// Funkcja do znajdowania użytkownika w arkuszu po numerze indeksu
+function findUserInSheet(sheetData, numerIndeksu) {
+  if (!sheetData || !numerIndeksu) return -1;
 
   for (let i = 0; i < sheetData.length; i++) {
     const row = sheetData[i];
     if (!row || row.length < 2) continue;
 
-    const firstName = String(row[0] || "")
-      .toLowerCase()
-      .trim();
-    const lastName = String(row[1] || "")
-      .toLowerCase()
-      .trim();
+    // Struktura arkusza: B=imię(0), C=numer_indeksu(1), D=szkopul_id(2)
+    const numerIndeksuZArkusza = String(row[1] || "").trim();
 
-    if (firstName && lastName) {
-      // Sprawdź czy imię z arkusza występuje w fullname
-      const hasFirstName = nameParts.includes(firstName);
-
-      // Sprawdź nazwisko - może być jako jeden ciąg lub jako części
-      let hasLastName = false;
-
-      // Przypadek 1: Nazwisko jako jeden ciąg (np. "wójcik alt")
-      const lastNameParts = lastName.split(" ");
-      if (lastNameParts.length > 1) {
-        // Sprawdź czy wszystkie części nazwiska z arkusza występują w fullname
-        hasLastName = lastNameParts.every((part) => nameParts.includes(part));
-      } else {
-        // Przypadek 2: Zwykłe nazwisko (jedna część)
-        hasLastName = nameParts.includes(lastName);
-      }
-
-      if (hasFirstName && hasLastName) {
-        return i;
-      }
+    if (numerIndeksuZArkusza === numerIndeksu) {
+      return i;
     }
   }
 
@@ -1052,7 +1031,7 @@ module.exports = {
       let podsumowanieInfo = null;
 
       if (sheetData && sheetData.length > 0) {
-        const userRowIndex = findUserInSheet(sheetData, userData.fullname);
+        const userRowIndex = findUserInSheet(sheetData, userData.numerIndeksu);
 
         if (userRowIndex !== -1) {
           attendanceInfo = analyzeAttendance(sheetData, userRowIndex);
@@ -1061,7 +1040,9 @@ module.exports = {
           maturyInfo = analyzeMatury(sheetData, userRowIndex);
           podsumowanieInfo = analyzePodsumowanie(sheetData, userRowIndex);
         }
-      } // Pobierz informacje o członku serwera
+      }
+
+      // Pobierz informacje o członku serwera
       const targetMember = await interaction.guild.members
         .fetch(targetUser.id)
         .catch(() => null);

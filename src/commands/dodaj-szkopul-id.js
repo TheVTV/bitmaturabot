@@ -3,180 +3,167 @@ const {
   ChannelType,
   MessageFlags,
   PermissionFlagsBits,
+  EmbedBuilder,
 } = require("discord.js");
-const {
-  getSzkopulIdByDiscordId,
-  updateUserSzkopulId,
-} = require("../db/users_mysql");
-
-// Mapa do przechowywania aktywnych sesji dodawania szkopul-id
-const activeSzkopulSessions = new Map();
+const { getAllTeachers } = require("../db/teachers");
+const { addPending } = require("../state/pending");
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName("dodaj-szkopul-id")
-    .setDescription("Dodaj swój identyfikator Szkopuł (szkopul.edu.pl)")
-    .setDefaultMemberPermissions(null) // Dostępne dla uczniów i wyżej
+    .setDescription(
+      "Dodaj/aktualizuj identyfikatory Szkopuł dla uczniów w grupie (tylko nauczyciele)"
+    )
+    .addIntegerOption((option) =>
+      option
+        .setName("grupa")
+        .setDescription(
+          "Numer grupy (wymagany jeśli prowadzisz więcej niż jedną grupę)"
+        )
+        .setRequired(false)
+        .setMinValue(1)
+        .setMaxValue(50)
+    )
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages)
     .setContexts([0]),
   async execute(interaction) {
+    // Natychmiastowa odpowiedź na interakcję, żeby uniknąć timeout
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
     try {
-      const discordId = interaction.user.id;
+      // Sprawdź czy użytkownik jest nauczycielem
+      const teachers = await getAllTeachers();
+      const teacherGroups = teachers.filter(
+        (t) => t.discord_id === interaction.user.id
+      );
 
-      // Sprawdź czy użytkownik ma już aktywną sesję
-      if (activeSzkopulSessions.has(discordId)) {
-        return interaction.reply({
-          content:
-            "Masz już aktywną sesję dodawania Szkopuł ID. Sprawdź swoje prywatne wątki.",
-          flags: MessageFlags.Ephemeral,
+      if (teacherGroups.length === 0) {
+        return await interaction.editReply({
+          content: "❌ Tylko nauczyciele mogą używać tej komendy.",
         });
       }
 
-      // Sprawdź czy użytkownik ma już przypisane Szkopuł ID
-      const existingSzkopulId = await getSzkopulIdByDiscordId(discordId);
+      // Jeśli nauczyciel ma wiele grup, sprawdź czy podał parametr
+      const selectedGroupId = interaction.options.getInteger("grupa");
+      let targetGroup;
 
-      if (existingSzkopulId) {
-        return interaction.reply({
-          content: `Masz już przypisany identyfikator Szkopuł: **${existingSzkopulId}**\n\nJeśli chcesz go zmienić, skontaktuj się z administracją.`,
-          flags: MessageFlags.Ephemeral,
-        });
+      if (teacherGroups.length > 1) {
+        // Nauczyciel ma wiele grup
+        if (!selectedGroupId) {
+          const groupsList = teacherGroups
+            .map((g) => g.group_id)
+            .sort((a, b) => a - b)
+            .join(", ");
+          return await interaction.editReply({
+            content: `❌ Prowadzisz ${teacherGroups.length} grup (${groupsList}). Musisz określić grupę używając parametru \`grupa\`.\n\nPrzykład: \`/dodaj-szkopul-id grupa:2\``,
+          });
+        }
+
+        // Sprawdź czy podana grupa należy do nauczyciela
+        targetGroup = teacherGroups.find((g) => g.group_id === selectedGroupId);
+        if (!targetGroup) {
+          const groupsList = teacherGroups
+            .map((g) => g.group_id)
+            .sort((a, b) => a - b)
+            .join(", ");
+          return await interaction.editReply({
+            content: `❌ Nie prowadzisz grupy ${selectedGroupId}. Twoje grupy: ${groupsList}`,
+          });
+        }
+      } else {
+        // Nauczyciel ma tylko jedną grupę
+        targetGroup = teacherGroups[0];
+
+        // Jeśli podał parametr grupy, sprawdź czy się zgadza
+        if (selectedGroupId && selectedGroupId !== targetGroup.group_id) {
+          return await interaction.editReply({
+            content: `❌ Nie prowadzisz grupy ${selectedGroupId}. Twoja grupa: ${targetGroup.group_id}`,
+          });
+        }
       }
 
-      // Utwórz prywatny wątek
+      // Utwórz prywatny wątek dla dodawania szkopuł ID
       const thread = await interaction.channel.threads.create({
-        name: `Szkopuł ID - ${interaction.user.username}`,
+        name: `📝 Szkopuł ID - ${interaction.user.username} (Grupa ${targetGroup.group_id})`,
+        autoArchiveDuration: 60, // 1 godzina
         type: ChannelType.PrivateThread,
-        invitable: false,
-        reason: "Dodawanie identyfikatora Szkopuł",
+        reason: "Dodawanie szkopuł ID przez nauczyciela",
       });
 
-      // Dodaj użytkownika do wątku
+      // Dodaj nauczyciela do wątku
       await thread.members.add(interaction.user.id);
 
-      // Zapisz aktywną sesję
-      activeSzkopulSessions.set(discordId, {
-        threadId: thread.id,
+      // Ustaw stan oczekujący na plik
+      addPending(interaction.user.id, {
+        type: "import_szkopul_ids",
         guildId: interaction.guild.id,
-        timestamp: Date.now(),
+        threadId: thread.id,
+        userId: interaction.user.id,
+        teacherGroupId: targetGroup.group_id,
+        startTime: Date.now(),
       });
 
-      // Wyślij instrukcje w wątku
-      await thread.send(
-        `Cześć ${interaction.user}! 👋\n\n` +
-          `Aby dodać swój identyfikator ze strony **szkopul.edu.pl**, podaj go w tym wątku.\n\n` +
-          `**Identyfikator powinien:**\n` +
-          `• Składać się tylko z cyfr\n` +
-          `• Nie zawierać spacji ani innych znaków\n` +
-          `• Być Twoim ID z profilu Szkopuł\n\n` +
-          `Przykład: \`12345\`\n\n` +
-          `Wpisz swój identyfikator poniżej:`
-      );
+      // Odpowiedź na komendę
+      const groupInfo =
+        teacherGroups.length > 1
+          ? ` dla grupy ${targetGroup.group_id} (z ${teacherGroups.length} prowadzonych przez Ciebie)`
+          : ` dla grupy ${targetGroup.group_id}`;
 
-      // Odpowiedz użytkownikowi
-      await interaction.reply({
-        content: `Utworzono prywatny wątek dla dodania Szkopuł ID: ${thread}`,
-        flags: MessageFlags.Ephemeral,
+      await interaction.editReply({
+        content: `✅ Utworzono prywatny wątek ${thread} do dodawania szkopuł ID${groupInfo}!`,
       });
 
-      // Ustaw timeout na 10 minut - jeśli użytkownik nie odpowie, usuń sesję
-      setTimeout(() => {
-        if (activeSzkopulSessions.has(discordId)) {
-          activeSzkopulSessions.delete(discordId);
-          thread.send(
-            "⏰ Sesja wygasła. Użyj ponownie komendy `/dodaj-szkopul-id` aby spróbować jeszcze raz."
-          );
+      // Wyślij instrukcje do wątku
+      const embed = new EmbedBuilder()
+        .setTitle("📝 Dodawanie identyfikatorów Szkopuł")
+        .setColor(0x00ff00)
+        .setDescription(
+          "Wyślij plik tekstowy (.txt) z identyfikatorami Szkopuł dla uczniów z Twojej grupy."
+        )
+        .addFields(
+          {
+            name: "👥 Grupa",
+            value: targetGroup.group_id.toString(),
+            inline: true,
+          },
+          {
+            name: "📝 Format pliku",
+            value: "Każda linia: `Imię Nazwisko;szkopul_id`",
+            inline: false,
+          },
+          {
+            name: "📋 Przykład",
+            value:
+              "```Jan Kowalski;jkowalski123\nAnna Nowak;anowak456\nPiotr Wiśniewski;pwisniewski789```",
+            inline: false,
+          },
+          {
+            name: "⚠️ Zasady",
+            value:
+              "• Każda osoba w **osobnej linii**\n• Dane oddzielone **średnikami** (;)\n• Możesz aktualizować tylko uczniów ze swojej grupy\n• Format: **Imię Nazwisko;identyfikator_szkopul**",
+            inline: false,
+          },
+          {
+            name: "🔍 Walidacja",
+            value:
+              "Bot sprawdzi czy podane imiona i nazwiska istnieją w Twojej grupie i zasugeruje poprawki w przypadku błędów.",
+            inline: false,
+          }
+        )
+        .setFooter({ text: "🤖 Wyślij plik .txt, a ja zajmę się resztą!" });
 
-          // Zamknij wątek po 30 sekundach
-          setTimeout(() => {
-            thread.setArchived(true).catch(console.error);
-          }, 30000);
-        }
-      }, 10 * 60 * 1000); // 10 minut
+      await thread.send({ embeds: [embed] });
     } catch (error) {
-      console.error("[SZKOPUL-ID] Błąd przy tworzeniu wątku:", error);
-      await interaction.reply({
-        content:
-          "Wystąpił błąd podczas tworzenia wątku. Spróbuj ponownie lub skontaktuj się z administracją.",
-        flags: MessageFlags.Ephemeral,
-      });
-    }
-  },
+      console.error("[DODAJ-SZKOPUL-ID] Błąd tworzenia wątku:", error);
 
-  // Funkcja do obsługi wiadomości w wątku
-  async handleThreadMessage(message) {
-    const discordId = message.author.id;
-    const session = activeSzkopulSessions.get(discordId);
-
-    if (!session || session.threadId !== message.channel.id) {
-      return false; // Nie nasza sesja
-    }
-
-    const szkopulId = message.content.trim();
-
-    // Walidacja Szkopuł ID
-    if (!this.validateSzkopulId(szkopulId)) {
-      await message.reply(
-        "❌ **Nieprawidłowy format identyfikatora!**\n\n" +
-          "Identyfikator Szkopuł powinien składać się tylko z cyfr (bez spacji i innych znaków).\n\n" +
-          "Przykład poprawnego ID: `12345`\n\n" +
-          "Spróbuj ponownie:"
-      );
-      return true;
-    }
-
-    try {
-      // Zapisz Szkopuł ID do bazy danych
-      const success = await updateUserSzkopulId(discordId, szkopulId);
-
-      if (success) {
-        await message.reply(
-          `✅ **Sukces!**\n\n` +
-            `Twój identyfikator Szkopuł został dodany: **${szkopulId}**\n\n` +
-            `Możesz teraz zamknąć ten wątek. Dziękujemy! 🎉`
-        );
-
-        // Usuń sesję
-        activeSzkopulSessions.delete(discordId);
-
-        // Zamknij wątek po 30 sekundach
-        setTimeout(() => {
-          message.channel.setArchived(true).catch(console.error);
-        }, 30000);
-      } else {
-        await message.reply(
-          "❌ **Błąd podczas zapisywania**\n\n" +
-            "Nie udało się zapisać identyfikatora do bazy danych. " +
-            "Spróbuj ponownie lub skontaktuj się z administracją."
-        );
+      try {
+        await interaction.editReply({
+          content:
+            "❌ Wystąpił błąd podczas tworzenia wątku. Spróbuj ponownie.",
+        });
+      } catch (replyError) {
+        console.error("[DODAJ-SZKOPUL-ID] Błąd odpowiedzi:", replyError);
       }
-    } catch (error) {
-      console.error("[SZKOPUL-ID] Błąd podczas zapisywania:", error);
-      await message.reply(
-        "❌ **Wystąpił błąd**\n\n" +
-          "Nie udało się zapisać identyfikatora. Spróbuj ponownie lub skontaktuj się z administracją."
-      );
     }
-
-    return true;
   },
-
-  // Funkcja walidacji Szkopuł ID
-  validateSzkopulId(szkopulId) {
-    if (!szkopulId || typeof szkopulId !== "string") {
-      return false;
-    }
-
-    // Usuń białe znaki
-    const trimmed = szkopulId.trim();
-
-    // Sprawdź czy składa się tylko z cyfr
-    const isNumeric = /^\d+$/.test(trimmed);
-
-    // Sprawdź czy nie jest pusty i ma sensowną długość (1-20 cyfr)
-    const hasValidLength = trimmed.length >= 1 && trimmed.length <= 20;
-
-    return isNumeric && hasValidLength;
-  },
-
-  // Eksportuj mapę sesji dla innych modułów
-  activeSzkopulSessions,
 };

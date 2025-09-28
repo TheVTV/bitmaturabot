@@ -43,7 +43,23 @@ async function setTeacherForGroup(groupId, discordId) {
   }
 }
 
+// Pobiera prowadzącego dla konkretnej grupy
+async function getTeacherForGroup(groupId) {
+  await ensureTeachersTable();
+  const connection = await getConnection();
+  try {
+    const [rows] = await connection.execute(
+      "SELECT discord_id FROM teachers WHERE group_id = ?",
+      [groupId]
+    );
+    return rows.length > 0 ? rows[0].discord_id : null;
+  } finally {
+    connection.release();
+  }
+}
+
 module.exports = {
   getAllTeachers,
   setTeacherForGroup,
+  getTeacherForGroup,
 };
