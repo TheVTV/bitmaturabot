@@ -54,6 +54,8 @@ async function checkUserPermissions(interaction, commandName) {
     "kiedy-zajęcia",
     "mój-wątek",
     "zapytaj",
+    "pogłaszcz-krówcię",
+    "ranking-krówci",
   ];
 
   // Komendy dla prowadzących i wyżej

@@ -7,7 +7,7 @@ const { getConnection } = require("./database");
  */
 async function petCow(discordId) {
   const connection = await getConnection();
-  
+
   try {
     await connection.beginTransaction();
 
@@ -18,7 +18,7 @@ async function petCow(discordId) {
     );
 
     let userPets;
-    
+
     if (existingRows.length > 0) {
       // Zwiększ licznik o 1
       const newCount = existingRows[0].pet_count + 1;
@@ -40,14 +40,14 @@ async function petCow(discordId) {
     const [totalRows] = await connection.execute(
       "SELECT SUM(pet_count) as total FROM cow_pets"
     );
-    
+
     const totalPets = totalRows[0].total || 0;
 
     await connection.commit();
-    
+
     return {
       userPets,
-      totalPets
+      totalPets,
     };
   } catch (error) {
     await connection.rollback();
@@ -65,13 +65,13 @@ async function petCow(discordId) {
  */
 async function getCowStats(discordId) {
   const connection = await getConnection();
-  
+
   try {
     // Sprawdź czy tabela istnieje
     const [tableExists] = await connection.execute(
       "SELECT COUNT(*) as count FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'cow_pets'"
     );
-    
+
     if (tableExists[0].count === 0) {
       return { userPets: 0, totalPets: 0, userRank: null }; // Tabela nie istnieje
     }
@@ -81,14 +81,14 @@ async function getCowStats(discordId) {
       "SELECT pet_count FROM cow_pets WHERE discord_id = ?",
       [discordId]
     );
-    
+
     const userPets = userRows.length > 0 ? userRows[0].pet_count : 0;
 
     // Pobierz łączną liczbę pogłaszeń
     const [totalRows] = await connection.execute(
       "SELECT SUM(pet_count) as total FROM cow_pets"
     );
-    
+
     const totalPets = totalRows[0].total || 0;
 
     // Pobierz ranking użytkownika (jeśli głaskał krówcię)
@@ -104,7 +104,7 @@ async function getCowStats(discordId) {
     return {
       userPets,
       totalPets,
-      userRank
+      userRank,
     };
   } catch (error) {
     console.error("[COW] Błąd w getCowStats:", error);
@@ -121,27 +121,28 @@ async function getCowStats(discordId) {
  */
 async function getCowLeaderboard(limit = 10) {
   const connection = await getConnection();
-  
+
   try {
     // Sprawdź czy tabela istnieje
     const [tableExists] = await connection.execute(
       "SELECT COUNT(*) as count FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'cow_pets'"
     );
-    
+
     if (tableExists[0].count === 0) {
       return []; // Tabela nie istnieje, zwróć pustą tablicę
     }
 
     const [rows] = await connection.execute(
-      "SELECT discord_id, pet_count FROM cow_pets ORDER BY pet_count DESC, created_at ASC LIMIT " + parseInt(limit),
+      "SELECT discord_id, pet_count FROM cow_pets ORDER BY pet_count DESC, created_at ASC LIMIT " +
+        parseInt(limit),
       []
     );
-    
+
     // Dodaj ranking manualnie
     return rows.map((row, index) => ({
       discord_id: row.discord_id,
       pet_count: row.pet_count,
-      rank: index + 1
+      rank: index + 1,
     }));
   } catch (error) {
     console.error("[COW] Błąd w getCowLeaderboard:", error);
@@ -159,7 +160,11 @@ async function getCowLeaderboard(limit = 10) {
 function getTimesWord(count) {
   if (count === 1) {
     return "raz";
-  } else if (count % 10 >= 2 && count % 10 <= 4 && (count % 100 < 10 || count % 100 >= 20)) {
+  } else if (
+    count % 10 >= 2 &&
+    count % 10 <= 4 &&
+    (count % 100 < 10 || count % 100 >= 20)
+  ) {
     return "razy";
   } else {
     return "razy";
@@ -170,5 +175,5 @@ module.exports = {
   petCow,
   getCowStats,
   getCowLeaderboard,
-  getTimesWord
+  getTimesWord,
 };

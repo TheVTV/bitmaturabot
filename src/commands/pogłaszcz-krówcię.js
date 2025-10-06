@@ -1,4 +1,8 @@
-const { SlashCommandBuilder, EmbedBuilder, AttachmentBuilder } = require("discord.js");
+const {
+  SlashCommandBuilder,
+  EmbedBuilder,
+  AttachmentBuilder,
+} = require("discord.js");
 const { petCow, getTimesWord } = require("../db/cow");
 const path = require("path");
 
@@ -12,17 +16,18 @@ module.exports = {
       await interaction.deferReply();
 
       const userId = interaction.user.id;
-      
+
       // Pogłaszcz krówcię i pobierz statystyki
       const { userPets, totalPets } = await petCow(userId);
-      
+
       // Różne emotikony i wiadomości w zależności od liczby pogłaszeń
       const cowEmojis = ["🐄", "🐮", "🥰", "💕", "✨"];
-      const randomEmoji = cowEmojis[Math.floor(Math.random() * cowEmojis.length)];
-      
+      const randomEmoji =
+        cowEmojis[Math.floor(Math.random() * cowEmojis.length)];
+
       let specialMessage = "";
       let embedColor = "#FF69B4"; // Różowy domyślny
-      
+
       if (userPets === 1) {
         specialMessage = "🎉 **To Twoje pierwsze pogłaskanie krówci!**";
         embedColor = "#FFD700"; // Złoty dla pierwszego razu
@@ -49,13 +54,13 @@ module.exports = {
         .setColor(embedColor)
         .setDescription(
           `🤗 **Ty:** Pogłaskałeś krówcię **${userPets}** ${userTimesWord}\n` +
-          `🌍 **Wszyscy:** Krówcia została pogłaskana **${totalPets}** ${totalTimesWord} łącznie`
+            `🌍 **Wszyscy:** Krówcia została pogłaskana **${totalPets}** ${totalTimesWord} łącznie`
         )
         .setImage("attachment://krowcia.gif")
         .setTimestamp()
-        .setFooter({ 
+        .setFooter({
           text: `Pogłaskane przez ${interaction.user.displayName}`,
-          iconURL: interaction.user.displayAvatarURL()
+          iconURL: interaction.user.displayAvatarURL(),
         });
 
       // Dodaj specjalną wiadomość jeśli istnieje
@@ -63,27 +68,28 @@ module.exports = {
         embed.addFields({
           name: "🎉 Specjalne osiągnięcie!",
           value: specialMessage,
-          inline: false
+          inline: false,
         });
       }
 
       // Utwórz attachment z gifem krówci
       const cowGifPath = path.join(__dirname, "..", "assets", "krowcia.gif");
-      const attachment = new AttachmentBuilder(cowGifPath, { name: "krowcia.gif" });
+      const attachment = new AttachmentBuilder(cowGifPath, {
+        name: "krowcia.gif",
+      });
 
       await interaction.editReply({
         embeds: [embed],
-        files: [attachment]
+        files: [attachment],
       });
-
     } catch (error) {
       console.error("[POGŁASZCZ-KRÓWCIĘ] Błąd:", error);
-      
+
       const errorEmbed = new EmbedBuilder()
         .setTitle("❌ Ups! Krówcia uciekła!")
         .setDescription("Spróbuj ponownie za chwilę.")
         .setColor("#FF0000");
-      
+
       if (interaction.deferred) {
         await interaction.editReply({ embeds: [errorEmbed] });
       } else {

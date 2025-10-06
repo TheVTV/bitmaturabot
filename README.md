@@ -18,23 +18,27 @@ Zaawansowany bot Discord do automatycznej rejestracji studentów z systemem szyf
 ## 🚀 Instalacja
 
 1. **Sklonuj repozytorium**
+
    ```bash
    git clone <repository-url>
    cd bitmaturabot
    ```
 
 2. **Zainstaluj zależności**
+
    ```bash
    npm install
    ```
 
 3. **Konfiguracja środowiska**
+
    ```bash
    cp .env.example .env
    # Edytuj .env z własnymi danymi
    ```
 
 4. **Wdróż komendy Discord**
+
    ```bash
    node src/deploy-commands.js
    ```
@@ -72,10 +76,12 @@ SZKOPUL_PASSWORD=your_password
 ## 📖 Główne Komendy
 
 ### 👤 Dla wszystkich użytkowników
+
 - `/ping` - Test połączenia z botem
 - `/rejestruj` - Rozpoczęcie procesu rejestracji
 
 ### 🎓 Dla uczniów i wyżej
+
 - `/profil` - Sprawdzenie swojego profilu
 - `/punkty` - Sprawdzenie punktów
 - `/ranking` - Ranking punktów top 10
@@ -86,12 +92,14 @@ SZKOPUL_PASSWORD=your_password
 - `/zapytaj` - Zadaj anonimowe pytanie nauczycielowi
 
 ### 👨‍🏫 Dla nauczycieli i wyżej
+
 - `/prowadzący` - Panel prowadzącego
 - `/synchronizuj-dane` - Synchronizacja z Google Sheets
 - `/czy-jasne` - Ankieta sprawdzająca zrozumienie
 - `/usuń-wątek` - Usuń wątek osobisty użytkownika
 
 ### 👑 Dla administratorów
+
 - `/konfiguracja` - Ustawienie ról serwera
 - `/dodaj-uczniów` - Import uczniów z pliku
 - `/dodaj-prowadzącego` - Dodanie nauczyciela
@@ -115,6 +123,7 @@ Bot używa systemu ról Discord do kontroli dostępu:
 ## 🤖 Automatyczne odpowiedzi
 
 Bot automatycznie reaguje na określone frazy:
+
 - **"kto pytał"** (i warianty) → "Siema, ja pytałem"
 
 ## 📂 Struktura projektu
@@ -134,6 +143,7 @@ src/
 ## � Baza Danych
 
 Tabele:
+
 - `users` - Dane użytkowników (zaszyfrowane)
 - `server_configs` - Konfiguracje serwerów
 - `user_points` - System punktowy

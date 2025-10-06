@@ -26,16 +26,21 @@ module.exports = {
       }
 
       const targetUser = interaction.options.getUser("użytkownik");
-      
+
       await interaction.deferReply();
 
       // Sprawdź czy użytkownik ma wątek w bazie danych
-      const threadData = await getPersonalThread(interaction.guild.id, targetUser.id);
+      const threadData = await getPersonalThread(
+        interaction.guild.id,
+        targetUser.id
+      );
 
       if (!threadData) {
         const noThreadEmbed = new EmbedBuilder()
           .setTitle("❌ Wątek nie znaleziony")
-          .setDescription(`Użytkownik ${targetUser} nie ma przypisanego wątku osobistego.`)
+          .setDescription(
+            `Użytkownik ${targetUser} nie ma przypisanego wątku osobistego.`
+          )
           .setColor("#FF0000")
           .setTimestamp();
 
@@ -46,9 +51,13 @@ module.exports = {
       // Znajdź kanał wątku na Discordzie
       let discordThread = null;
       try {
-        discordThread = await interaction.guild.channels.fetch(threadData.thread_id);
+        discordThread = await interaction.guild.channels.fetch(
+          threadData.thread_id
+        );
       } catch (error) {
-        console.log(`[USUŃ-WĄTEK] Wątek ${threadData.thread_id} nie istnieje na Discordzie (prawdopodobnie już usunięty)`);
+        console.log(
+          `[USUŃ-WĄTEK] Wątek ${threadData.thread_id} nie istnieje na Discordzie (prawdopodobnie już usunięty)`
+        );
       }
 
       let deleteErrors = [];
@@ -56,7 +65,9 @@ module.exports = {
       // Usuń wątek z Discord (jeśli istnieje)
       if (discordThread) {
         try {
-          await discordThread.delete(`Usunięcie wątku przez ${interaction.user.tag} za pomocą komendy /usuń-wątek`);
+          await discordThread.delete(
+            `Usunięcie wątku przez ${interaction.user.tag} za pomocą komendy /usuń-wątek`
+          );
         } catch (error) {
           deleteErrors.push(`Discord: ${error.message}`);
           console.error(`[USUŃ-WĄTEK] Błąd usuwania wątku z Discord:`, error);
@@ -72,12 +83,10 @@ module.exports = {
       }
 
       // Przygotuj odpowiedź
-      const resultEmbed = new EmbedBuilder()
-        .setTimestamp()
-        .setFooter({ 
-          text: `Usunięte przez ${interaction.user.displayName}`,
-          iconURL: interaction.user.displayAvatarURL()
-        });
+      const resultEmbed = new EmbedBuilder().setTimestamp().setFooter({
+        text: `Usunięte przez ${interaction.user.displayName}`,
+        iconURL: interaction.user.displayAvatarURL(),
+      });
 
       if (deleteErrors.length === 0) {
         // Sukces
@@ -85,8 +94,8 @@ module.exports = {
           .setTitle("✅ Wątek został usunięty")
           .setDescription(
             `**Użytkownik:** ${targetUser}\n` +
-            `**Nazwa wątku:** ${threadData.thread_name}\n` +
-            `**Status:** Usunięty z Discord i bazy danych`
+              `**Nazwa wątku:** ${threadData.thread_name}\n` +
+              `**Status:** Usunięty z Discord i bazy danych`
           )
           .setColor("#00FF00");
       } else {
@@ -95,17 +104,16 @@ module.exports = {
           .setTitle("⚠️ Wątek częściowo usunięty")
           .setDescription(
             `**Użytkownik:** ${targetUser}\n` +
-            `**Nazwa wątku:** ${threadData.thread_name}\n` +
-            `**Błędy:**\n${deleteErrors.map(err => `• ${err}`).join('\n')}`
+              `**Nazwa wątku:** ${threadData.thread_name}\n` +
+              `**Błędy:**\n${deleteErrors.map((err) => `• ${err}`).join("\n")}`
           )
           .setColor("#FFA500");
       }
 
       await interaction.editReply({ embeds: [resultEmbed] });
-
     } catch (error) {
       console.error("[USUŃ-WĄTEK] Nieoczekiwany błąd:", error);
-      
+
       const errorEmbed = new EmbedBuilder()
         .setTitle("❌ Wystąpił błąd")
         .setDescription("Nie udało się usunąć wątku. Spróbuj ponownie później.")

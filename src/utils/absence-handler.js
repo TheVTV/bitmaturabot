@@ -4,7 +4,10 @@ const {
   MessageFlags,
   EmbedBuilder,
 } = require("discord.js");
-const { getUserByDiscordId, getNumerIndeksuByEmail } = require("../db/users_mysql");
+const {
+  getUserByDiscordId,
+  getNumerIndeksuByEmail,
+} = require("../db/users_mysql");
 const { getAllTeachers } = require("../db/teachers");
 const { checkUserPermissions } = require("./permissions");
 const { validateAbsenceDateFromFields } = require("./date-validator");
@@ -332,10 +335,10 @@ async function handleAbsenceApproval(
         const userData = await getUserByDiscordId(threadData.studentId);
         if (userData && userData.email) {
           const numerIndeksu = await getNumerIndeksuByEmail(userData.email);
-          
+
           // Wyodrębnij imię z fullname (pierwsze słowo)
-          const studentName = threadData.studentFullName.split(' ')[0];
-          
+          const studentName = threadData.studentFullName.split(" ")[0];
+
           if (numerIndeksu) {
             sheetResult = await writeAbsenceToSheet(
               threadData.group,
@@ -344,7 +347,10 @@ async function handleAbsenceApproval(
               threadData.absenceDate
             );
           } else {
-            console.warn("Nie znaleziono numeru indeksu dla użytkownika:", userData.email);
+            console.warn(
+              "Nie znaleziono numeru indeksu dla użytkownika:",
+              userData.email
+            );
             // Fallback - spróbuj ze starą metodą
             sheetResult = await writeAbsenceToSheet(
               threadData.group,
@@ -353,7 +359,10 @@ async function handleAbsenceApproval(
             );
           }
         } else {
-          console.warn("Nie znaleziono danych użytkownika dla Discord ID:", threadData.studentId);
+          console.warn(
+            "Nie znaleziono danych użytkownika dla Discord ID:",
+            threadData.studentId
+          );
           // Fallback - spróbuj ze starą metodą
           sheetResult = await writeAbsenceToSheet(
             threadData.group,
