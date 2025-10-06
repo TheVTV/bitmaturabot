@@ -52,6 +52,7 @@ async function checkUserPermissions(interaction, commandName) {
     "dodaj-szkopul-id",
     "zgłoś-nieobecność",
     "kiedy-zajęcia",
+    "mój-wątek",
   ];
 
   // Komendy dla prowadzących i wyżej
@@ -59,7 +60,6 @@ async function checkUserPermissions(interaction, commandName) {
     "prowadzący",
     "synchronizuj-dane",
     "potwierdź-usprawiedliwienie",
-    "lista-prowadzących",
   ];
 
   // Komendy tylko dla adminów
@@ -71,8 +71,8 @@ async function checkUserPermissions(interaction, commandName) {
     "usuń-ucznia",
     "zmien-grupe",
     "blokuj-wiadomości",
-    "dodaj-indeks",
-    "lista-prowadzących",
+    "utwórz-wątki-osobiste",
+    "usuń-wszystkie-wątki",
   ];
 
   // Jeśli użytkownik jest niezarejestrowany

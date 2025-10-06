@@ -765,10 +765,8 @@ async function getAllUsers() {
         fullname: userData.fullname,
         group_number: parseInt(userData.group) || null,
         group: parseInt(userData.group) || null, // dodaj też 'group' dla spójności
-        discordId: userData.discordId, // Poprawna nazwa pola
-        discord_id: userData.discordId, // Zachowaj też starą nazwę dla kompatybilności
+        discord_id: userData.discordId,
         numerIndeksu: userData.numerIndeksu,
-        szkopulId: userData.szkopulId,
         szkopul_id: userData.szkopulId,
       });
     }

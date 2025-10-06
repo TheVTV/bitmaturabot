@@ -1,9 +1,9 @@
 require("dotenv").config();
-const { REST, Routes, PermissionFlagsBits } = require("discord.js");
+const { REST, Routes } = require("discord.js");
 const fs = require("node:fs");
 const path = require("node:path");
 
-const REQUIRED_ENV = ["DISCORD_TOKEN", "CLIENT_ID"];
+const REQUIRED_ENV = ["DISCORD_TOKEN", "CLIENT_ID", "GUILD_ID"];
 const missing = REQUIRED_ENV.filter((k) => !process.env[k]);
 if (missing.length) {
   console.error(`Brakuje zmiennych w .env: ${missing.join(", ")}`);
@@ -30,11 +30,19 @@ const rest = new REST().setToken(process.env.DISCORD_TOKEN);
 
 async function deploy() {
   try {
-    console.log(`Publikuję ${commands.length} komend(y) globalnie...`);
-    await rest.put(Routes.applicationCommands(process.env.CLIENT_ID), {
-      body: commands,
-    });
-    console.log("Gotowe. Komendy będą dostępne w kilka minut.");
+    console.log(
+      `Publikuję ${commands.length} komend(y) na serwerze ${process.env.GUILD_ID}...`
+    );
+    await rest.put(
+      Routes.applicationGuildCommands(
+        process.env.CLIENT_ID,
+        process.env.GUILD_ID
+      ),
+      {
+        body: commands,
+      }
+    );
+    console.log("✅ Gotowe. Komendy serwerowe są dostępne natychmiast!");
   } catch (error) {
     console.error(error);
     process.exit(1);
