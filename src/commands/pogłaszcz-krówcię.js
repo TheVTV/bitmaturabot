@@ -18,7 +18,32 @@ module.exports = {
       const userId = interaction.user.id;
 
       // Pogłaszcz krówcię i pobierz statystyki
-      const { userPets, totalPets } = await petCow(userId);
+      const result = await petCow(userId);
+
+      // Sprawdź czy użytkownik jest na cooldown
+      if (result.onCooldown) {
+        const minutes = Math.floor(result.remainingTime / 60);
+        const seconds = result.remainingTime % 60;
+
+        const timeString =
+          minutes > 0 ? `${minutes} min ${seconds} sek` : `${seconds} sek`;
+
+        const cooldownEmbed = new EmbedBuilder()
+          .setTitle("⏰ Spokojnie z tym głaskaniem!")
+          .setDescription(
+            `Krówcia potrzebuje odpoczynku! 🐄💤\n\n` +
+              `Możesz ją pogłaskać ponownie za: **${timeString}**\n\n` +
+              `Dotychczas pogłaskałeś krówcię **${
+                result.userPets
+              }** ${getTimesWord(result.userPets)}! 🎉`
+          )
+          .setColor("#FFA500")
+          .setTimestamp();
+
+        return interaction.editReply({ embeds: [cooldownEmbed] });
+      }
+
+      const { userPets, totalPets } = result;
 
       // Różne emotikony i wiadomości w zależności od liczby pogłaszeń
       const cowEmojis = ["🐄", "🐮", "🥰", "💕", "✨"];

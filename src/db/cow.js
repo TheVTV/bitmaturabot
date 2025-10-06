@@ -3,7 +3,7 @@ const { getConnection } = require("./database");
 /**
  * Zwiększ liczbę pogłaszeń krówci dla użytkownika
  * @param {string} discordId - Discord ID użytkownika
- * @returns {Promise<{userPets: number, totalPets: number}>} Liczba pogłaszeń użytkownika i łącznie wszystkich
+ * @returns {Promise<{userPets: number, totalPets: number, onCooldown?: boolean, remainingTime?: number}>} Liczba pogłaszeń użytkownika i łącznie wszystkich
  */
 async function petCow(discordId) {
   const connection = await getConnection();
@@ -11,11 +11,30 @@ async function petCow(discordId) {
   try {
     await connection.beginTransaction();
 
-    // Sprawdź czy użytkownik już głaskał krówcię
+    // Sprawdź czy użytkownik już głaskał krówcię i czy jest na cooldown
     const [existingRows] = await connection.execute(
-      "SELECT pet_count FROM cow_pets WHERE discord_id = ?",
+      "SELECT pet_count, last_pet FROM cow_pets WHERE discord_id = ?",
       [discordId]
     );
+
+    if (existingRows.length > 0) {
+      const lastPet = new Date(existingRows[0].last_pet);
+      const now = new Date();
+      const timeDiff = now - lastPet;
+      const cooldownMs = 60 * 1000; // 1 minuta w milisekundach
+
+      // Sprawdź cooldown (1 minuta)
+      if (timeDiff < cooldownMs) {
+        const remainingTime = Math.ceil((cooldownMs - timeDiff) / 1000);
+        await connection.rollback();
+        return {
+          userPets: existingRows[0].pet_count,
+          totalPets: 0, // Nie pobieramy total gdy jest cooldown
+          onCooldown: true,
+          remainingTime,
+        };
+      }
+    }
 
     let userPets;
 
