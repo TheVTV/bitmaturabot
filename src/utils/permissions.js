@@ -53,6 +53,7 @@ async function checkUserPermissions(interaction, commandName) {
     "zgłoś-nieobecność",
     "kiedy-zajęcia",
     "mój-wątek",
+    "zapytaj",
   ];
 
   // Komendy dla prowadzących i wyżej
@@ -60,6 +61,8 @@ async function checkUserPermissions(interaction, commandName) {
     "prowadzący",
     "synchronizuj-dane",
     "potwierdź-usprawiedliwienie",
+    "czy-jasne",
+    "usuń-wątek",
   ];
 
   // Komendy tylko dla adminów

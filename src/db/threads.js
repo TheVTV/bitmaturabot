@@ -308,10 +308,48 @@ async function getAllActiveThreads(guildId) {
   }
 }
 
+/**
+ * Kompletnie usuwa wątek osobisty z bazy danych
+ */
+async function deletePersonalThread(guildId, userDiscordId) {
+  await ensurePersonalThreadsTable();
+  const connection = await getConnection();
+  try {
+    // Sprawdź czy tabela ma zaszyfrowane kolumny
+    const [columns] = await connection.execute(`
+      SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS 
+      WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'personal_threads'
+    `);
+
+    const columnNames = columns.map((col) => col.COLUMN_NAME);
+    const hasEncryptedColumns = columnNames.includes(
+      "user_discord_id_encrypted"
+    );
+
+    if (hasEncryptedColumns) {
+      // Nowy format z enkrypcją
+      const userDiscordIdSearchHash = generateSearchHash(userDiscordId);
+      await connection.execute(
+        "DELETE FROM personal_threads WHERE guild_id = ? AND user_discord_id_search_hash = ?",
+        [guildId, userDiscordIdSearchHash]
+      );
+    } else {
+      // Stary format bez enkrypcji
+      await connection.execute(
+        "DELETE FROM personal_threads WHERE guild_id = ? AND user_discord_id = ?",
+        [guildId, userDiscordId]
+      );
+    }
+  } finally {
+    connection.release();
+  }
+}
+
 module.exports = {
   createPersonalThread,
   getPersonalThread,
   deactivatePersonalThread,
+  deletePersonalThread,
   getThreadStats,
   getAllActiveThreads,
 };

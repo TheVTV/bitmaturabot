@@ -4,6 +4,31 @@ const { checkUserPermissions } = require("../utils/permissions");
 module.exports = {
   name: Events.InteractionCreate,
   async execute(interaction, client) {
+    // Handle button interactions
+    if (interaction.isButton()) {
+      // Handle clarity poll buttons
+      if (interaction.customId.startsWith("clarity_")) {
+        const clarityCommand = client.commands.get("czy-jasne");
+        if (clarityCommand && clarityCommand.handleButtonInteraction) {
+          try {
+            await clarityCommand.handleButtonInteraction(interaction);
+          } catch (error) {
+            console.error(
+              "Błąd podczas obsługi przycisku ankiety czy-jasne:",
+              error
+            );
+            if (!interaction.replied && !interaction.deferred) {
+              await interaction.reply({
+                content: "❌ Wystąpił błąd podczas przetwarzania odpowiedzi.",
+                flags: MessageFlags.Ephemeral,
+              });
+            }
+          }
+        }
+        return;
+      }
+    }
+
     // Handle modal submissions
     if (interaction.isModalSubmit()) {
       if (interaction.customId.startsWith("absence_report_")) {
@@ -31,6 +56,28 @@ module.exports = {
             }
           } catch (replyError) {
             console.error("Nie można wysłać komunikatu o błędzie:", replyError);
+          }
+        }
+        return;
+      }
+
+      // Handle clarity poll modal submissions
+      if (interaction.customId.startsWith("clarity_modal_")) {
+        const clarityCommand = client.commands.get("czy-jasne");
+        if (clarityCommand && clarityCommand.handleModalSubmit) {
+          try {
+            await clarityCommand.handleModalSubmit(interaction);
+          } catch (error) {
+            console.error(
+              "Błąd podczas obsługi modału ankiety czy-jasne:",
+              error
+            );
+            if (!interaction.replied && !interaction.deferred) {
+              await interaction.reply({
+                content: "❌ Wystąpił błąd podczas przetwarzania odpowiedzi.",
+                flags: MessageFlags.Ephemeral,
+              });
+            }
           }
         }
         return;

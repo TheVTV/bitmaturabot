@@ -4,7 +4,7 @@ const {
   MessageFlags,
   EmbedBuilder,
 } = require("discord.js");
-const { getUserByDiscordId } = require("../db/users_mysql");
+const { getUserByDiscordId, getNumerIndeksuByEmail } = require("../db/users_mysql");
 const { getAllTeachers } = require("../db/teachers");
 const { checkUserPermissions } = require("./permissions");
 const { validateAbsenceDateFromFields } = require("./date-validator");
@@ -328,11 +328,39 @@ async function handleAbsenceApproval(
       threadData.group
     ) {
       try {
-        sheetResult = await writeAbsenceToSheet(
-          threadData.group,
-          threadData.studentFullName,
-          threadData.absenceDate
-        );
+        // Pobierz dane użytkownika, żeby uzyskać email i numer indeksu
+        const userData = await getUserByDiscordId(threadData.studentId);
+        if (userData && userData.email) {
+          const numerIndeksu = await getNumerIndeksuByEmail(userData.email);
+          
+          // Wyodrębnij imię z fullname (pierwsze słowo)
+          const studentName = threadData.studentFullName.split(' ')[0];
+          
+          if (numerIndeksu) {
+            sheetResult = await writeAbsenceToSheet(
+              threadData.group,
+              studentName,
+              numerIndeksu,
+              threadData.absenceDate
+            );
+          } else {
+            console.warn("Nie znaleziono numeru indeksu dla użytkownika:", userData.email);
+            // Fallback - spróbuj ze starą metodą
+            sheetResult = await writeAbsenceToSheet(
+              threadData.group,
+              threadData.studentFullName,
+              threadData.absenceDate
+            );
+          }
+        } else {
+          console.warn("Nie znaleziono danych użytkownika dla Discord ID:", threadData.studentId);
+          // Fallback - spróbuj ze starą metodą
+          sheetResult = await writeAbsenceToSheet(
+            threadData.group,
+            threadData.studentFullName,
+            threadData.absenceDate
+          );
+        }
       } catch (sheetError) {
         console.error(
           "Błąd podczas zapisywania usprawiedliwienia w arkuszu:",

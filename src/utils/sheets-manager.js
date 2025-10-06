@@ -16,7 +16,73 @@ async function authorize() {
 }
 
 /**
- * Znajduje ucznia w arkuszu na podstawie imienia i nazwiska
+ * Znajduje ucznia w arkuszu Google Sheets na podstawie imienia i numeru indeksu.
+ * Kolumna B zawiera imię, kolumna C zawiera numer indeksu.
+ */
+async function findStudentInSheetByNameAndIndex(groupNumber, studentName, numerIndeksu) {
+  try {
+    if (!SPREADSHEET_ID) {
+      console.error("SPREADSHEET_ID nie jest ustawiony w zmiennych środowiskowych");
+      return { row: null, found: false };
+    }
+
+    const authClient = await authorize();
+    const sheets = google.sheets({ version: "v4", auth: authClient });
+    const sheetName = `Grupa${groupNumber}`;
+
+    // Pobierz dane z kolumn B (imię) i C (numer indeksu) od wiersza 2 do 100
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${sheetName}!B2:C100`,
+    });
+
+    const rows = response.data.values || [];
+
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      if (!row || row.length < 2) continue;
+
+      const imie = row[0] ? row[0].trim() : ""; // Kolumna B
+      const indeks = row[1] ? row[1].trim() : ""; // Kolumna C
+
+      if (!imie || !indeks) continue;
+
+      // Sprawdź czy imię i numer indeksu pasują
+      if (imie === studentName && indeks === numerIndeksu) {
+        console.log(
+          `Znaleziono ucznia "${studentName}" (indeks: ${numerIndeksu}) w arkuszu grupy ${groupNumber}, wiersz ${i + 2}`
+        );
+        return { row: i + 2, found: true };
+      }
+    }
+
+    console.log(
+      `Nie znaleziono ucznia "${studentName}" z numerem indeksu "${numerIndeksu}" w arkuszu grupy ${groupNumber}`
+    );
+    console.log(`Dostępni uczniowie w arkuszu (pierwsze 10):`);
+    for (let i = 0; i < Math.min(rows.length, 10); i++) {
+      const row = rows[i];
+      if (row && row.length >= 2) {
+        const imie = row[0] ? row[0].trim() : ""; // Kolumna B
+        const indeks = row[1] ? row[1].trim() : ""; // Kolumna C
+
+        if (imie && indeks) {
+          console.log(`- imię: "${imie}", indeks: "${indeks}"`);
+        }
+      }
+    }
+
+    return { row: null, found: false };
+  } catch (error) {
+    console.error(`Błąd podczas szukania ucznia w arkuszu grupy ${groupNumber}:`, error);
+    return { row: null, found: false };
+  }
+}
+
+/**
+ * Znajduje ucznia w arkuszu na podstawie imienia i nazwiska (NIEPOPRAWNA METODA)
+ * UWAGA: Ta metoda zakłada że kolumna C zawiera nazwisko, ale faktycznie zawiera numer indeksu.
+ * Używana tylko dla kompatybilności wstecznej.
  * @param {string|number} groupNumber - Numer grupy
  * @param {string} fullName - Pełne imię i nazwisko ucznia
  * @returns {Promise<{row: number, found: boolean}>} - Numer wiersza ucznia lub -1 jeśli nie znaleziono
@@ -175,10 +241,12 @@ function columnIndexToLetter(columnIndex) {
  * Zapisuje usprawiedliwienie ("u") w arkuszu dla danego ucznia i daty
  * @param {string|number} groupNumber - Numer grupy
  * @param {string} fullName - Pełne imię i nazwisko ucznia
- * @param {string} absenceDate - Data nieobecności w formacie DD-MM-YYYY
- * @returns {Promise<{success: boolean, message: string}>}
+ * Zapisuje usprawiedliwienie nieobecności w arkuszu Google Sheets.
+ * Obsługuje dwa tryby wywołania:
+ * 1. writeAbsenceToSheet(groupNumber, studentName, numerIndeksu, absenceDate) - nowy tryb z numerem indeksu
+ * 2. writeAbsenceToSheet(groupNumber, fullName, absenceDate) - stary tryb dla kompatybilności wstecznej
  */
-async function writeAbsenceToSheet(groupNumber, fullName, absenceDate) {
+async function writeAbsenceToSheet(groupNumber, param2, param3, param4) {
   try {
     if (!SPREADSHEET_ID) {
       return {
@@ -187,12 +255,31 @@ async function writeAbsenceToSheet(groupNumber, fullName, absenceDate) {
       };
     }
 
-    // Znajdź ucznia w arkuszu
-    const studentResult = await findStudentInSheet(groupNumber, fullName);
+    let studentResult, absenceDate;
+
+    // Określ tryb wywołania na podstawie liczby parametrów
+    if (param4) {
+      // Nowy tryb: (groupNumber, studentName, numerIndeksu, absenceDate)
+      const studentName = param2;
+      const numerIndeksu = param3;
+      absenceDate = param4;
+      
+      // Znajdź ucznia w arkuszu po imieniu i numerze indeksu
+      studentResult = await findStudentInSheetByNameAndIndex(groupNumber, studentName, numerIndeksu);
+    } else {
+      // Stary tryb: (groupNumber, fullName, absenceDate)
+      const fullName = param2;
+      absenceDate = param3;
+      
+      // Znajdź ucznia w arkuszu po pełnym imieniu (stara metoda)
+      studentResult = await findStudentInSheet(groupNumber, fullName);
+    }
+
     if (!studentResult.found) {
+      const searchInfo = param4 ? `"${param2}" (indeks: ${param3})` : `"${param2}"`;
       return {
         success: false,
-        message: `Nie znaleziono ucznia "${fullName}" w arkuszu grupy ${groupNumber}`,
+        message: `Nie znaleziono ucznia ${searchInfo} w arkuszu grupy ${groupNumber}`,
       };
     }
 
@@ -221,7 +308,7 @@ async function writeAbsenceToSheet(groupNumber, fullName, absenceDate) {
     });
 
     console.log(
-      `Zapisano usprawiedliwienie dla ${fullName} na datę ${absenceDate} w komórce ${cellAddress} (Grupa ${groupNumber})`
+      `Zapisano usprawiedliwienie dla ${param4 ? `${param2} (indeks: ${param3})` : param2} na datę ${absenceDate} w komórce ${cellAddress} (Grupa ${groupNumber})`
     );
 
     return {

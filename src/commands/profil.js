@@ -51,8 +51,8 @@ function analyzeAttendance(sheetData, userRowIndex) {
   }
 
   // console.log("User Row:", userRow);
-  // Kolumny E do AJ to teraz indeksy 4 do 36 (E=4, F=5, ..., AJ=36) - przesunięte o 1
-  for (let colIndex = 4; colIndex <= 35; colIndex++) {
+  // Kolumny E do AI to teraz indeksy 4 do 34 (E=4, F=5, ..., AI=34) - przesunięte o 1, pomijamy ostatnią kolumnę (AJ) z plusami
+  for (let colIndex = 4; colIndex <= 34; colIndex++) {
     const cellValue = userRow[colIndex];
     const dateValue = dateRow ? dateRow[colIndex] : null;
 
@@ -245,13 +245,6 @@ function analyzeMatury(sheetData, userRowIndex) {
       percentageText += "%";
     }
     matury.matura1 = percentageText;
-
-    // Sprawdź czy osiągnął 100%
-    const numericValue =
-      parseFloat(String(matura1Cell).replace("%", "").replace(",", ".")) || 0;
-    if (numericValue >= 100) {
-      matury.hasMaxResult = true;
-    }
   }
 
   // Kolumna AZ (druga matura) - indeks 51 (przesunięte o 1)
@@ -262,13 +255,6 @@ function analyzeMatury(sheetData, userRowIndex) {
       percentageText += "%";
     }
     matury.matura2 = percentageText;
-
-    // Sprawdź czy osiągnął 100%
-    const numericValue =
-      parseFloat(String(matura2Cell).replace("%", "").replace(",", ".")) || 0;
-    if (numericValue >= 100) {
-      matury.hasMaxResult = true;
-    }
   }
 
   // Punkty łączne z kolumny BE (indeks 56) - przesunięte o 1
@@ -276,6 +262,11 @@ function analyzeMatury(sheetData, userRowIndex) {
   if (totalPointsCell !== undefined && totalPointsCell !== null) {
     matury.totalPoints =
       parseFloat(String(totalPointsCell).replace(",", ".")) || 0;
+
+    // Sprawdź czy osiągnął maksymalny wynik (25/25 punktów)
+    if (matury.totalPoints >= 25) {
+      matury.hasMaxResult = true;
+    }
   }
 
   return matury;

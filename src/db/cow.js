@@ -1,0 +1,174 @@
+const { getConnection } = require("./database");
+
+/**
+ * Zwiększ liczbę pogłaszeń krówci dla użytkownika
+ * @param {string} discordId - Discord ID użytkownika
+ * @returns {Promise<{userPets: number, totalPets: number}>} Liczba pogłaszeń użytkownika i łącznie wszystkich
+ */
+async function petCow(discordId) {
+  const connection = await getConnection();
+  
+  try {
+    await connection.beginTransaction();
+
+    // Sprawdź czy użytkownik już głaskał krówcię
+    const [existingRows] = await connection.execute(
+      "SELECT pet_count FROM cow_pets WHERE discord_id = ?",
+      [discordId]
+    );
+
+    let userPets;
+    
+    if (existingRows.length > 0) {
+      // Zwiększ licznik o 1
+      const newCount = existingRows[0].pet_count + 1;
+      await connection.execute(
+        "UPDATE cow_pets SET pet_count = ?, last_pet = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE discord_id = ?",
+        [newCount, discordId]
+      );
+      userPets = newCount;
+    } else {
+      // Pierwszy raz głaska krówcię
+      await connection.execute(
+        "INSERT INTO cow_pets (discord_id, pet_count) VALUES (?, 1)",
+        [discordId]
+      );
+      userPets = 1;
+    }
+
+    // Pobierz łączną liczbę pogłaszeń wszystkich użytkowników
+    const [totalRows] = await connection.execute(
+      "SELECT SUM(pet_count) as total FROM cow_pets"
+    );
+    
+    const totalPets = totalRows[0].total || 0;
+
+    await connection.commit();
+    
+    return {
+      userPets,
+      totalPets
+    };
+  } catch (error) {
+    await connection.rollback();
+    console.error("[COW] Błąd w petCow:", error);
+    throw error;
+  } finally {
+    connection.release();
+  }
+}
+
+/**
+ * Pobierz statystyki głaskania krówci dla użytkownika
+ * @param {string} discordId - Discord ID użytkownika
+ * @returns {Promise<{userPets: number, totalPets: number, userRank: number|null}>}
+ */
+async function getCowStats(discordId) {
+  const connection = await getConnection();
+  
+  try {
+    // Sprawdź czy tabela istnieje
+    const [tableExists] = await connection.execute(
+      "SELECT COUNT(*) as count FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'cow_pets'"
+    );
+    
+    if (tableExists[0].count === 0) {
+      return { userPets: 0, totalPets: 0, userRank: null }; // Tabela nie istnieje
+    }
+
+    // Pobierz dane użytkownika
+    const [userRows] = await connection.execute(
+      "SELECT pet_count FROM cow_pets WHERE discord_id = ?",
+      [discordId]
+    );
+    
+    const userPets = userRows.length > 0 ? userRows[0].pet_count : 0;
+
+    // Pobierz łączną liczbę pogłaszeń
+    const [totalRows] = await connection.execute(
+      "SELECT SUM(pet_count) as total FROM cow_pets"
+    );
+    
+    const totalPets = totalRows[0].total || 0;
+
+    // Pobierz ranking użytkownika (jeśli głaskał krówcię)
+    let userRank = null;
+    if (userPets > 0) {
+      const [rankRows] = await connection.execute(
+        "SELECT COUNT(*) + 1 as `rank` FROM cow_pets WHERE pet_count > ?",
+        [userPets]
+      );
+      userRank = rankRows[0].rank;
+    }
+
+    return {
+      userPets,
+      totalPets,
+      userRank
+    };
+  } catch (error) {
+    console.error("[COW] Błąd w getCowStats:", error);
+    return { userPets: 0, totalPets: 0, userRank: null }; // W przypadku błędu zwróć domyślne wartości
+  } finally {
+    connection.release();
+  }
+}
+
+/**
+ * Pobierz ranking top użytkowników głaskających krówcię
+ * @param {number} limit - Maksymalna liczba wyników (domyślnie 10)
+ * @returns {Promise<Array<{discord_id: string, pet_count: number, rank: number}>>}
+ */
+async function getCowLeaderboard(limit = 10) {
+  const connection = await getConnection();
+  
+  try {
+    // Sprawdź czy tabela istnieje
+    const [tableExists] = await connection.execute(
+      "SELECT COUNT(*) as count FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'cow_pets'"
+    );
+    
+    if (tableExists[0].count === 0) {
+      return []; // Tabela nie istnieje, zwróć pustą tablicę
+    }
+
+    const [rows] = await connection.execute(
+      "SELECT discord_id, pet_count FROM cow_pets ORDER BY pet_count DESC, created_at ASC LIMIT " + parseInt(limit),
+      []
+    );
+    
+    // Dodaj ranking manualnie
+    return rows.map((row, index) => ({
+      discord_id: row.discord_id,
+      pet_count: row.pet_count,
+      rank: index + 1
+    }));
+  } catch (error) {
+    console.error("[COW] Błąd w getCowLeaderboard:", error);
+    return []; // W przypadku błędu zwróć pustą tablicę
+  } finally {
+    connection.release();
+  }
+}
+
+/**
+ * Pobierz słowo "raz" w odpowiedniej formie gramatycznej
+ * @param {number} count - Liczba
+ * @returns {string} Poprawna forma słowa
+ */
+function getTimesWord(count) {
+  if (count === 1) {
+    return "raz";
+  } else if (count % 10 >= 2 && count % 10 <= 4 && (count % 100 < 10 || count % 100 >= 20)) {
+    return "razy";
+  } else {
+    return "razy";
+  }
+}
+
+module.exports = {
+  petCow,
+  getCowStats,
+  getCowLeaderboard,
+  getTimesWord
+};

@@ -200,6 +200,20 @@ async function createTables() {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `);
 
+    // Tabela głaskania krówci
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS cow_pets (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        discord_id VARCHAR(255) NOT NULL,
+        pet_count INT DEFAULT 1,
+        last_pet TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY unique_user (discord_id),
+        INDEX idx_pet_count (pet_count DESC)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+
     // Migracja: sprawdź czy trzeba usunąć stary UNIQUE constraint
     try {
       const [constraints] = await connection.execute(`

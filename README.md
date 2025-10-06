@@ -12,38 +12,36 @@ Zaawansowany bot Discord do automatycznej rejestracji studentów z systemem szyf
 - **📊 MySQL Database** - Wydajna baza danych z szyfrowaniem
 - **🤖 Automatyczne odpowiedzi** - Bot reaguje na popularne frazy
 - **🏆 System punktowy** - Nagradzanie użytkowników punktami z rankingiem
+- **🐄 Pogłaskaj krówcię** - Zabawna komenda do głaskania wirtualnej krówci
+- **🧵 Zarządzanie wątkami** - Tworzenie i usuwanie osobistych wątków
 
 ## 🚀 Instalacja
 
 1. **Sklonuj repozytorium**
-
    ```bash
    git clone <repository-url>
    cd bitmaturabot
    ```
 
 2. **Zainstaluj zależności**
-
    ```bash
    npm install
    ```
 
 3. **Konfiguracja środowiska**
-
    ```bash
    cp .env.example .env
    # Edytuj .env z własnymi danymi
    ```
 
 4. **Wdróż komendy Discord**
-
    ```bash
-   npm run deploy
+   node src/deploy-commands.js
    ```
 
 5. **Uruchom bota**
    ```bash
-   npm start
+   node src/index.js
    ```
 
 ## ⚙️ Konfiguracja
@@ -53,7 +51,8 @@ Zaawansowany bot Discord do automatycznej rejestracji studentów z systemem szyf
 ```env
 # Discord Bot
 DISCORD_TOKEN=your_bot_token
-DISCORD_CLIENT_ID=your_client_id
+CLIENT_ID=your_client_id
+GUILD_ID=your_guild_id
 
 # Baza danych MySQL
 DATABASE_URL=mysql://username:password@host:port/database
@@ -61,41 +60,62 @@ DATABASE_URL=mysql://username:password@host:port/database
 # Szyfrowanie (generowane automatycznie)
 ENCRYPTION_KEY=your_32_character_hex_key
 SEARCH_SALT=your_unique_salt_for_search
+
+# Google Sheets
+SPREADSHEET_ID=your_spreadsheet_id
+
+# Szkopuł API (opcjonalnie)
+SZKOPUL_USERNAME=your_username
+SZKOPUL_PASSWORD=your_password
 ```
 
-### Uprawnienia bota
+## 📖 Główne Komendy
 
-Bot potrzebuje następujących uprawnień:
-
-- `Send Messages`
-- `Create Public Threads`
-- `Create Private Threads`
-- `Manage Roles`
-- `Use Slash Commands`
-
-## 📖 Komendy
-
+### 👤 Dla wszystkich użytkowników
 - `/ping` - Test połączenia z botem
 - `/rejestruj` - Rozpoczęcie procesu rejestracji
-- `/konfiguracja` - Ustawienie ról serwera (wymaga roli administratora z konfiguracji)
-- `/zmień-grupę` - Zmiana grupy użytkownika (wymaga roli administratora z konfiguracji)
-- `/grupa` - Wyświetlenie listy uczniów z wybranej grupy (dla nauczycieli i administratorów)
-- `/dodaj-uczniów` - Import uczniów z pliku (wymaga roli administratora z konfiguracji)
-- `/punkty` - Sprawdzenie punktów użytkownika (dla uczniów, nauczycieli i administratorów)
-- `/ranking` - Wyświetlenie rankingu punktów top 10 (dla uczniów, nauczycieli i administratorów)
+
+### 🎓 Dla uczniów i wyżej
+- `/profil` - Sprawdzenie swojego profilu
+- `/punkty` - Sprawdzenie punktów
+- `/ranking` - Ranking punktów top 10
+- `/ranking-grupa` - Ranking grupy
+- `/grupa` - Lista uczniów z grupy
+- `/pogłaszcz-krówcię` - Pogłaszcz wirtualną krówcię
+- `/ranking-krówci` - Zobacz ranking głaskaczów krówci
+- `/zapytaj` - Zadaj anonimowe pytanie nauczycielowi
+
+### 👨‍🏫 Dla nauczycieli i wyżej
+- `/prowadzący` - Panel prowadzącego
+- `/synchronizuj-dane` - Synchronizacja z Google Sheets
+- `/czy-jasne` - Ankieta sprawdzająca zrozumienie
+- `/usuń-wątek` - Usuń wątek osobisty użytkownika
+
+### 👑 Dla administratorów
+- `/konfiguracja` - Ustawienie ról serwera
+- `/dodaj-uczniów` - Import uczniów z pliku
+- `/dodaj-prowadzącego` - Dodanie nauczyciela
+- `/usuń-ucznia` - Usunięcie ucznia
+- `/zmien-grupe` - Zmiana grupy użytkownika
+- `/utwórz-wątki-osobiste` - Tworzenie wątków dla uczniów
+- `/usuń-wszystkie-wątki` - Usunięcie wszystkich wątków
+
+## 🔐 System Uprawnień
+
+Bot używa systemu ról Discord do kontroli dostępu:
+
+- **Niezarejestrowany** - tylko `/rejestruj`
+- **Uczeń** - podstawowe komendy
+- **Prowadzący** - komendy nauczycielskie + uczniowskie
+- **Admin** - wszystkie komendy
+
+📋 Szczegóły: `PERMISSIONS_SYSTEM.md`  
+🛡️ Konfiguracja: `DISCORD_PERMISSIONS_GUIDE.md`
 
 ## 🤖 Automatyczne odpowiedzi
 
 Bot automatycznie reaguje na określone frazy:
-
 - **"kto pytał"** (i warianty) → "Siema, ja pytałem"
-
-## 🔐 Bezpieczeństwo
-
-- **AES-256-CBC** - Szyfrowanie danych osobowych
-- **Hash wyszukiwania** - Wydajne wyszukiwanie bez deszyfrowania
-- **Prywatne wątki** - Ochrona danych podczas rejestracji
-- **Walidacja danych** - Sprawdzanie poprawności email i danych
 
 ## 📂 Struktura projektu
 
@@ -107,21 +127,26 @@ src/
 ├── events/            # Event handlery Discord
 ├── scripts/           # Narzędzia pomocnicze
 ├── state/             # Zarządzanie stanem
+├── utils/             # Narzędzia pomocnicze
 └── index.js           # Główny plik aplikacji
 ```
 
-## 🛠️ Rozwój
+## � Baza Danych
 
-```bash
-# Tryb deweloperski (auto-restart)
-npm run dev
+Tabele:
+- `users` - Dane użytkowników (zaszyfrowane)
+- `server_configs` - Konfiguracje serwerów
+- `user_points` - System punktowy
+- `personal_threads` - Wątki osobiste
+- `teachers` - Lista nauczycieli
+- `cow_pets` - Statystyki głaskania krówci
 
-# Wdrożenie komend na serwer testowy
-npm run deploy:guild
+## 📝 Dodatkowa Dokumentacja
 
-# Sprawdzenie zdrowia systemu
-npm run health-check
-```
+- 📋 **System uprawnień**: `PERMISSIONS_SYSTEM.md`
+- 🛡️ **Konfiguracja Discord**: `DISCORD_PERMISSIONS_GUIDE.md`
+- 🗳️ **Ankiety "Czy jasne?"**: `ANKIETY_CZY_JASNE.md`
+- ❓ **Komenda zapytaj**: `KOMENDA_ZAPYTAJ.md`
 
 ## 📝 Licencja
 
