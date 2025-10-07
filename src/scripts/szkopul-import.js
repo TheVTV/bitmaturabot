@@ -45,12 +45,12 @@ const GROUP_LEVELS = {
     .map((g) => g.trim())
     .map(Number),
   sredniozaawansowany: (
-    process.env.GROUPS_SREDNIOZAAWANSOWANY || "4,5,6,7,8,9,12"
+    process.env.GROUPS_SREDNIOZAAWANSOWANY || "4,5,6,7,8,9,11,12"
   )
     .split(",")
     .map((g) => g.trim())
     .map(Number),
-  zaawansowany: (process.env.GROUPS_ZAAWANSOWANY || "10,11")
+  zaawansowany: (process.env.GROUPS_ZAAWANSOWANY || "10")
     .split(",")
     .map((g) => g.trim())
     .map(Number),
