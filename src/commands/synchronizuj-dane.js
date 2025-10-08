@@ -36,8 +36,8 @@ module.exports = {
         "[SYNC] Rozpoczynam synchronizację danych..."
       );
 
-      // Uruchom synchronizację
-      const syncResult = await performDataSync();
+      // Uruchom synchronizację z przekazaniem klienta (dla sprawdzania nieobecności)
+      const syncResult = await performDataSync(interaction.client);
 
       if (syncResult === false) {
         // Synchronizacja została pominięta bo już trwała
@@ -47,7 +47,8 @@ module.exports = {
       } else {
         // Synchronizacja zakończona pomyślnie
         await interaction.editReply(
-          "[SYNC] Synchronizacja danych zakończona pomyślnie!"
+          "[SYNC] Synchronizacja danych zakończona pomyślnie!\n" +
+            "(Sprawdzono również limity nieobecności)"
         );
       }
     } catch (error) {

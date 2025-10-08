@@ -80,12 +80,9 @@ initDatabase()
 const {
   initializeSheetsAndImport,
 } = require("./scripts/import-points-from-sheets");
-const { startScheduler } = require("./scripts/data-sync-scheduler");
 const GUILD_ID = process.env.GUILD_ID || "1395757947564331180";
 
-// Uruchom scheduler synchronizacji danych w tle (bez początkowej synchronizacji)
-console.log("🕐 Uruchamiam scheduler synchronizacji danych...");
-startScheduler(false); // false = nie uruchamiaj natychmiast
+// Scheduler zostanie uruchomiony w ready.js z dostępem do klienta
 
 // Inicjalizacja arkuszy przy starcie
 initializeSheetsAndImport(GUILD_ID);

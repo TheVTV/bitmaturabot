@@ -43,6 +43,43 @@ module.exports = {
         return interaction.editReply({ embeds: [cooldownEmbed] });
       }
 
+      // Sprawdź czy to będzie 2137-me pogłaskanie, ale barka nie została zaśpiewana
+      if (result.needsBarka) {
+        const barkaEmbed = new EmbedBuilder()
+          .setTitle("🎵 2137 Pogłaskanie wymaga barki!")
+          .setDescription(
+            `Gratulacje! To miałoby być **2137-me pogłaskanie krówci**! 🎉\n\n` +
+              `Ale żeby pogłaskać krówcię po raz 2137, musisz najpierw zaśpiewać **Barkę** na następnym wykładzie! 🎤\n\n` +
+              `**Aktualna liczba pogłaszeń:** ${result.totalPets}/2136\n` +
+              `**Twoje pogłaskania:** ${result.userPets} ${getTimesWord(
+                result.userPets
+              )}\n\n` +
+              `*Poczekaj aż ktoś zaśpiewa Barkę, a wtedy będziesz mógł kontynuować głaskanie! 🐄*`
+          )
+          .setColor("#FF0000")
+          .setTimestamp();
+
+        return interaction.editReply({ embeds: [barkaEmbed] });
+      }
+
+      // Sprawdź czy osiągnięto limit i barka nie została zaśpiewana
+      if (result.atLimit) {
+        const limitEmbed = new EmbedBuilder()
+          .setTitle("🚫 Limit pogłaszeń osiągnięty!")
+          .setDescription(
+            `Krówcia osiągnęła maksymalny limit pogłaszeń! 🐄\n\n` +
+              `**Aktualna liczba pogłaszeń:** ${result.totalPets}\n` +
+              `**Twoje pogłaskania:** ${result.userPets} ${getTimesWord(
+                result.userPets
+              )}\n\n` +
+              `Żeby kontynuować głaskanie, ktoś musi zaśpiewać **Barkę** na wykładzie! 🎤`
+          )
+          .setColor("#8B0000")
+          .setTimestamp();
+
+        return interaction.editReply({ embeds: [limitEmbed] });
+      }
+
       const { userPets, totalPets } = result;
 
       // Różne emotikony i wiadomości w zależności od liczby pogłaszeń

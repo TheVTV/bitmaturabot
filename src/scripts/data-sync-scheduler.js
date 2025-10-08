@@ -6,6 +6,7 @@ require("dotenv").config({
 // Import funkcji
 const { importSzkopulData } = require("./szkopul-import");
 const { initializeSheetsAndImport } = require("./import-points-from-sheets");
+const { checkAllStudentsAttendance } = require("../utils/attendance-monitor");
 
 // Konfiguracja
 const GUILD_ID = process.env.GUILD_ID;
@@ -44,8 +45,9 @@ function getNextScheduledTime() {
 
 /**
  * Funkcja wykonująca pełny cykl synchronizacji danych
+ * @param {Client} client - instancja klienta Discord (opcjonalna)
  */
-async function performDataSync() {
+async function performDataSync(client = null) {
   // Sprawdź czy synchronizacja już trwa
   if (isSyncInProgress) {
     const currentTime = formatTimeInTimezone();
@@ -77,6 +79,12 @@ async function performDataSync() {
     console.log("[SYNC] KROK 2: Import danych z arkuszy do systemu...");
     await initializeSheetsAndImport(GUILD_ID);
 
+    // KROK 3: Sprawdź limity nieobecności (jeśli mamy klienta)
+    if (client) {
+      console.log("[SYNC] KROK 3: Sprawdzanie limitów nieobecności...");
+      await checkAllStudentsAttendance(client);
+    }
+
     const endTime = new Date();
     const duration = Math.round((endTime - startTime) / 1000);
 
@@ -105,8 +113,9 @@ async function performDataSync() {
 /**
  * Funkcja uruchamiająca scheduler
  * @param {boolean} runImmediately - czy uruchomić synchronizację natychmiast
+ * @param {Client} client - instancja klienta Discord (opcjonalna)
  */
-function startScheduler(runImmediately = true) {
+function startScheduler(runImmediately = true, client = null) {
   console.log(
     `[SCHEDULER] Scheduler synchronizacji: co godzinę o pełnej godzinie (${TIMEZONE})`
   );
@@ -117,7 +126,7 @@ function startScheduler(runImmediately = true) {
   cron.schedule(
     "0 * * * *",
     async () => {
-      await performDataSync();
+      await performDataSync(client);
     },
     {
       scheduled: true,
@@ -128,7 +137,7 @@ function startScheduler(runImmediately = true) {
   // Opcjonalnie: uruchom natychmiast przy starcie
   if (runImmediately) {
     console.log("[SCHEDULER] Wykonuję początkową synchronizację...");
-    performDataSync();
+    performDataSync(client);
   }
 }
 

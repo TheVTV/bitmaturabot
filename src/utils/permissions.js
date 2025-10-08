@@ -65,6 +65,7 @@ async function checkUserPermissions(interaction, commandName) {
     "potwierdź-usprawiedliwienie",
     "czy-jasne",
     "usuń-wątek",
+    "znajdź-wątek",
   ];
 
   // Komendy tylko dla adminów
@@ -78,6 +79,8 @@ async function checkUserPermissions(interaction, commandName) {
     "blokuj-wiadomości",
     "utwórz-wątki-osobiste",
     "usuń-wszystkie-wątki",
+    "status-barki",
+    "sprawdź-nieobecności",
   ];
 
   // Jeśli użytkownik jest niezarejestrowany
