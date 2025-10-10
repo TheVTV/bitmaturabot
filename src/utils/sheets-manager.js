@@ -9,9 +9,11 @@ const SPREADSHEET_ID = process.env.SPREADSHEET_ID;
  * Autoryzuje dostęp do Google Sheets API
  */
 async function authorize() {
-  const credentials = JSON.parse(fs.readFileSync(CREDENTIALS_PATH, "utf8"));
   const scopes = ["https://www.googleapis.com/auth/spreadsheets"];
-  const auth = new google.auth.GoogleAuth({ credentials, scopes });
+  const auth = new google.auth.GoogleAuth({ 
+    keyFile: CREDENTIALS_PATH,
+    scopes: scopes 
+  });
   return await auth.getClient();
 }
 
