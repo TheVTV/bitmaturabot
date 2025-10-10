@@ -111,7 +111,7 @@ async function handleAbsenceReportModal(interaction) {
 
     // Znajdź prowadzącego grupy
     const teachers = await getAllTeachers();
-    const teacher = teachers.find((t) => t.group_id == userData.group);
+    const teacher = teachers.find((t) => t.group_number == userData.group);
 
     if (!teacher) {
       await interaction.editReply({

@@ -45,8 +45,8 @@ module.exports = {
         return;
       }
       let response = "👨‍🏫 **Lista prowadzących przypisanych do grup:**\n\n";
-      for (const { group_id, discord_id } of teachers) {
-        response += `• Grupa **${group_id}**: <@${discord_id}>\n`;
+      for (const { group_number, discord_id } of teachers) {
+        response += `• Grupa **${group_number}**: <@${discord_id}>\n`;
       }
       await interaction.editReply(response);
     } catch (error) {
