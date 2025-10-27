@@ -197,11 +197,9 @@ function getSzkopulIdFromSheets(numerIndeksu, grupa, sheetsCache) {
  * Funkcja do autoryzacji Google Sheets API
  */
 async function authorizeGoogleSheets() {
+  const credentials = JSON.parse(fs.readFileSync(CREDENTIALS_PATH, "utf8"));
   const scopes = ["https://www.googleapis.com/auth/spreadsheets"];
-  const auth = new google.auth.GoogleAuth({ 
-    keyFile: CREDENTIALS_PATH,
-    scopes: scopes 
-  });
+  const auth = new google.auth.GoogleAuth({ credentials, scopes });
   return await auth.getClient();
 }
 

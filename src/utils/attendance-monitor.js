@@ -169,8 +169,7 @@ async function wasNotificationSent(studentDiscordId, notificationType) {
     const [rows] = await connection.execute(
       `SELECT id FROM absence_notifications 
        WHERE student_discord_id = ? 
-       AND notification_type = ?
-       AND DATE(created_at) = CURDATE()`,
+       AND notification_type = ?`,
       [studentDiscordId, notificationType]
     );
 
