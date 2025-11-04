@@ -249,14 +249,8 @@ async function updateUserPointsInSheet(
 
     const sheetData = response.data.values || [];
     const userRowIndex = findUserInSheet(sheetData, numerIndeksu);
-    console.log(
-      `[ARKUSZ DEBUG] Szukanie użytkownika ${numerIndeksu} w arkuszu ${sheetName}, znaleziono na indeksie: ${userRowIndex}`
-    );
 
     if (userRowIndex === -1) {
-      console.log(
-        `[ARKUSZ DEBUG] Użytkownik ${numerIndeksu} nie został znaleziony w arkuszu`
-      );
       return false;
     }
 
@@ -266,13 +260,6 @@ async function updateUserPointsInSheet(
     // Kolumny przesunięte o 1 w prawo: AL->AM, AM->AN (indeksy 38 i 39)
     const basePointsRange = `${sheetName}!AM${actualRowNumber}`;
     const bonusPointsRange = `${sheetName}!AN${actualRowNumber}`;
-
-    console.log(`[ARKUSZ DEBUG] Aktualizacja punktów dla ${numerIndeksu}:`);
-    console.log(`[ARKUSZ DEBUG] - Wiersz: ${actualRowNumber}`);
-    console.log(`[ARKUSZ DEBUG] - Bazowe: ${basePointsRange} = ${basePoints}`);
-    console.log(
-      `[ARKUSZ DEBUG] - Dodatkowe: ${bonusPointsRange} = ${bonusPoints}`
-    );
 
     // Aktualizuj punkty bazowe (kolumna AM)
     await sheets.spreadsheets.values.update({
@@ -294,9 +281,6 @@ async function updateUserPointsInSheet(
       },
     });
 
-    console.log(
-      `[ARKUSZ DEBUG] Punkty zaktualizowane pomyślnie dla ${numerIndeksu}`
-    );
     return true;
   } catch (error) {
     console.error(

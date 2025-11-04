@@ -25,10 +25,12 @@ function analyzeAttendance(sheetData, userRowIndex) {
     present: 0,
     absentUnexcused: 0,
     absentExcused: 0,
+    excused: 0, // zwolnieni (zw)
     totalClasses: 0,
     attendanceRate: "0%",
     unexpcusedDates: [],
     excusedDates: [],
+    excusedFromClass: [], // daty zwolnień
     plusPoints: 0,
     plusPercentage: 0,
   };
@@ -70,6 +72,11 @@ function analyzeAttendance(sheetData, userRowIndex) {
         attendance.absentExcused++;
         if (dateValue) {
           attendance.excusedDates.push(dateValue);
+        }
+      } else if (cellStr === "zw") {
+        attendance.excused++;
+        if (dateValue) {
+          attendance.excusedFromClass.push(dateValue);
         }
       } else if (!isNaN(Number(cellStr))) {
         attendance.present++;
@@ -426,6 +433,7 @@ function createAttendancePage(targetUser, attendanceInfo, sheetData) {
         `**Obecności:** ${attendanceInfo.present}\n` +
         `**Nieobecności nieusprawiedliwione:** ${attendanceInfo.absentUnexcused}\n` +
         `**Nieobecności usprawiedliwione:** ${attendanceInfo.absentExcused}\n` +
+        `**Zwolnieni z zajęć:** ${attendanceInfo.excused}\n` +
         `**Łączna liczba zajęć:** ${attendanceInfo.totalClasses}\n` +
         `**Frekwencja:** ${attendanceInfo.attendanceRate}`,
       inline: false,
@@ -458,6 +466,22 @@ function createAttendancePage(targetUser, attendanceInfo, sheetData) {
 
       embed.addFields({
         name: "⚠️ Nieobecności usprawiedliwione",
+        value: datesList + moreText,
+        inline: false,
+      });
+    }
+
+    // Dodaj zwolnienia z zajęć jeśli istnieją
+    if (attendanceInfo.excusedFromClass.length > 0) {
+      const dates = attendanceInfo.excusedFromClass.slice(0, 10);
+      const datesList = dates.join(", ");
+      const moreText =
+        attendanceInfo.excusedFromClass.length > 10
+          ? `\n... i ${attendanceInfo.excusedFromClass.length - 10} więcej`
+          : "";
+
+      embed.addFields({
+        name: "✅ Zwolnieni z zajęć",
         value: datesList + moreText,
         inline: false,
       });

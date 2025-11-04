@@ -29,7 +29,7 @@ module.exports = {
     await interaction.deferReply({ ephemeral: true });
     try {
       const teachers = await getAllTeachers();
-      const alreadyAssigned = teachers.find((t) => t.group_id === groupId);
+      const alreadyAssigned = teachers.find((t) => t.group_number === groupId);
       if (alreadyAssigned) {
         await interaction.editReply(
           `❌ Grupa **${groupId}** ma już przypisanego prowadzącego: <@${alreadyAssigned.discord_id}>.`

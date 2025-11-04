@@ -21,7 +21,7 @@ async function getAllTeachers() {
   const connection = await getConnection();
   try {
     const [rows] = await connection.execute(
-      "SELECT group_id, discord_id FROM teachers ORDER BY group_id"
+      "SELECT group_id as group_number, discord_id, 'Nauczyciel' as name FROM teachers ORDER BY group_id"
     );
     return rows;
   } finally {

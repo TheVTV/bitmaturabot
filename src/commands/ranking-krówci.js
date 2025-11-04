@@ -70,6 +70,7 @@ module.exports = {
 
       // Dodaj łączne statystyki
       const totalTimesWord = getTimesWord(userStats.totalPets);
+
       embed.addFields({
         name: "🌍 Łączne statystyki",
         value: `Krówcia została pogłaskana **${userStats.totalPets}** ${totalTimesWord} przez wszystkich!`,

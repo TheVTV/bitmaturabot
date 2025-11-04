@@ -157,8 +157,8 @@ async function createNewPersonalThread(
     const teachers = await getAllTeachers(interaction.guild.id);
     const teacherMap = new Map();
     teachers.forEach((teacher) => {
-      if (teacher.group_id) {
-        teacherMap.set(teacher.group_id.toString(), teacher.discord_id);
+      if (teacher.group_number) {
+        teacherMap.set(teacher.group_number.toString(), teacher.discord_id);
       }
     });
 

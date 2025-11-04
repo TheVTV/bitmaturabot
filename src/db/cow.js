@@ -3,7 +3,7 @@ const { getConnection } = require("./database");
 /**
  * Zwiększ liczbę pogłaszeń krówci dla użytkownika
  * @param {string} discordId - Discord ID użytkownika
- * @returns {Promise<{userPets: number, totalPets: number, onCooldown?: boolean, remainingTime?: number}>} Liczba pogłaszeń użytkownika i łącznie wszystkich
+ * @returns {Promise<{userPets: number, totalPets: number, onCooldown?: boolean, remainingTime?: number, needsBarka?: boolean, atLimit?: boolean}>} Liczba pogłaszeń użytkownika i łącznie wszystkich
  */
 async function petCow(discordId) {
   const connection = await getConnection();
@@ -36,6 +36,36 @@ async function petCow(discordId) {
       }
     }
 
+    // Sprawdź aktualną liczbę globalnych pogłaszeń PRZED dodaniem nowego
+    const [totalRows] = await connection.execute(
+      "SELECT SUM(pet_count) as total FROM cow_pets"
+    );
+
+    const currentTotal = totalRows[0].total || 0;
+
+    // Sprawdź czy następne pogłaskanie będzie 2137-tym
+    if (currentTotal >= 2136) {
+      const barkaSung = process.env.BARKA_SUNG === "1";
+
+      if (currentTotal === 2136 && !barkaSung) {
+        // To będzie 2137-me pogłaskanie, ale barka nie została zaśpiewana
+        await connection.rollback();
+        return {
+          userPets: existingRows.length > 0 ? existingRows[0].pet_count : 0,
+          totalPets: currentTotal,
+          needsBarka: true,
+        };
+      } else if (currentTotal > 2136 && !barkaSung) {
+        // Już po limicie, ale barka nie została zaśpiewana
+        await connection.rollback();
+        return {
+          userPets: existingRows.length > 0 ? existingRows[0].pet_count : 0,
+          totalPets: currentTotal,
+          atLimit: true,
+        };
+      }
+    }
+
     let userPets;
 
     if (existingRows.length > 0) {
@@ -55,12 +85,12 @@ async function petCow(discordId) {
       userPets = 1;
     }
 
-    // Pobierz łączną liczbę pogłaszeń wszystkich użytkowników
-    const [totalRows] = await connection.execute(
+    // Pobierz nową łączną liczbę pogłaszeń wszystkich użytkowników
+    const [newTotalRows] = await connection.execute(
       "SELECT SUM(pet_count) as total FROM cow_pets"
     );
 
-    const totalPets = totalRows[0].total || 0;
+    const totalPets = newTotalRows[0].total || 0;
 
     await connection.commit();
 
