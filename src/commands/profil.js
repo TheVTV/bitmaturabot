@@ -193,11 +193,11 @@ function analyzeKolokwia(sheetData, userRowIndex) {
     } else {
       const cellStr = String(testCell).toLowerCase().trim();
       if (cellStr === "nb") {
-        testResult = "❌ Nieobecność";
+        testResult = "⚠ Nieobecność (bez wyniku)";
       } else if (cellStr === "nzal") {
-        testResult = "⭕ Niezaliczony";
+        testResult = "⭕ Niezaliczony: 0%";
       } else {
-        testResult = String(testCell) + " pkt";
+        testResult = String(testCell) + "  %";
       }
     }
 
@@ -318,7 +318,7 @@ function analyzePodsumowanie(sheetData, userRowIndex) {
   const skopulCell = userRow[53];
   if (skopulCell !== undefined && skopulCell !== null) {
     const skopulValue = parseFloat(String(skopulCell).replace(",", ".")) || 0;
-    podsumowanie.skopul = `${skopulValue} / 30`;
+    podsumowanie.skopul = `${skopulValue} / 40`;
     podsumowanie.skopulNumeric = skopulValue;
   }
 
@@ -327,7 +327,7 @@ function analyzePodsumowanie(sheetData, userRowIndex) {
   if (kolokwiaCell !== undefined && kolokwiaCell !== null) {
     const kolokwiaValue =
       parseFloat(String(kolokwiaCell).replace(",", ".")) || 0;
-    podsumowanie.kolokwia = `${kolokwiaValue} / 25`;
+    podsumowanie.kolokwia = `${kolokwiaValue} / 20`;
     podsumowanie.kolokwiaNumeric = kolokwiaValue;
   }
 
@@ -344,7 +344,7 @@ function analyzePodsumowanie(sheetData, userRowIndex) {
   const maturyCell = userRow[56];
   if (maturyCell !== undefined && maturyCell !== null) {
     const maturyValue = parseFloat(String(maturyCell).replace(",", ".")) || 0;
-    podsumowanie.matury = `${maturyValue} / 25`;
+    podsumowanie.matury = `${maturyValue} / 20`;
     podsumowanie.maturyNumeric = maturyValue;
   }
 
