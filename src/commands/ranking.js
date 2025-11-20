@@ -23,15 +23,15 @@ const path = require("path");
 // Funkcja do poprawnej odmiany słowa "punkt"
 function getPointsWord(points) {
   if (points === 1) {
-    return "punkt";
+    return "pkt";
   } else if (
     points % 10 >= 2 &&
     points % 10 <= 4 &&
     (points % 100 < 10 || points % 100 >= 20)
   ) {
-    return "punkty";
+    return "pkt";
   } else {
-    return "punktów";
+    return "pkt";
   }
 }
 
@@ -74,7 +74,7 @@ async function generateRankingImage(
 
   try {
     // Załaduj obraz tła
-    const bgPath = path.join(__dirname, "..", "assets", "bgranking.png");
+    const bgPath = path.join(__dirname, "..", "assets", "bm_rankingbg_new.png");
     const backgroundImage = await loadImage(bgPath);
 
     // Narysuj tło - dopasuj do rozmiaru canvas
@@ -91,9 +91,9 @@ async function generateRankingImage(
   }
 
   // Subtelna ramka
-  ctx.strokeStyle = "rgba(255, 255, 255, 0.3)";
-  ctx.lineWidth = 4;
-  ctx.strokeRect(15, 15, 670, 870);
+  // ctx.strokeStyle = "rgba(255, 255, 255, 0.3)";
+  // ctx.lineWidth = 4;
+  // ctx.strokeRect(15, 15, 670, 870);
 
   // Tytuł
   ctx.fillStyle = "#ffffff";
@@ -286,7 +286,7 @@ module.exports = {
       if (!topUsers || topUsers.length === 0) {
         await interaction.editReply({
           content:
-            "📊 **Ranking punktów**\n\n❌ Brak użytkowników z punktami na tym serwerze.",
+            "📊 **Ranking Kaczki**\n\n❌ Brak użytkowników z punktami na tym serwerze.",
         });
         return;
       }
@@ -328,7 +328,7 @@ module.exports = {
       });
 
       await interaction.editReply({
-        content: `🏆 **Ranking punktów - Top ${topUsers.length}**\n📈 **${totalUsers} użytkowników z punktami**`,
+        content: `🏆 **Ranking Kaczki - Top ${topUsers.length}**\n📈 **${totalUsers} użytkowników z punktami**`,
         files: [attachment],
       });
     } catch (error) {
@@ -344,13 +344,13 @@ module.exports = {
         if (!topUsers || topUsers.length === 0) {
           await interaction.editReply({
             content:
-              "📊 **Ranking punktów**\n\n❌ Brak użytkowników z punktami na tym serwerze.",
+              "📊 **Ranking Kaczki**\n\n❌ Brak użytkowników z punktami na tym serwerze.",
           });
           return;
         }
 
         // Zbuduj ranking tekstowy
-        let response = `🏆 **Ranking punktów - Top ${topUsers.length}**\n\n`;
+        let response = `🏆 **Ranking Kaczki - Top ${topUsers.length}**\n\n`;
 
         const medals = ["🥇", "🥈", "🥉"];
 
