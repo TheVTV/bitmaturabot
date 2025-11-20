@@ -176,13 +176,13 @@ async function generateRankingImage(
         const medalImg = medalImages[medalType];
       
         // Rysowanie obrazka medalu
-        ctx.drawImage(medalImg, 130, yPosition, 40, 40); 
+        ctx.drawImage(medalImg, 130, yPosition + 5, 31, 40); 
       } else {
         // Pozostałe pozycje (tekst 4., 5., 6., ...)
         ctx.fillStyle = "#ffffff";
         ctx.font = "bold 28px Inter, Arial, sans-serif";
         ctx.textAlign = "left";
-        ctx.fillText(`${position}.`, 130, yPosition + 25);
+        ctx.fillText(`${position}.`, 130, yPosition + 5);
       }
     } catch (error) {
       const medal = medals[i] || `${position}.`;
@@ -194,7 +194,7 @@ async function generateRankingImage(
       ctx.shadowBlur = 4;
       ctx.shadowOffsetX = 2;
       ctx.shadowOffsetY = 2;
-      ctx.fillText(medal, 130, yPosition + 25);
+      ctx.fillText(medal, 130, yPosition + 5);
     }
 
     // Nazwa użytkownika
@@ -215,14 +215,14 @@ async function generateRankingImage(
       shortName += "...";
     }
 
-    ctx.fillText(shortName, 200, yPosition + 25);
+    ctx.fillText(shortName, 200, yPosition + 5);
 
     // Punkty
     ctx.fillStyle = "#cceeffff";
     ctx.font = "bold 24px Inter, Arial, sans-serif";
     ctx.textAlign = "right";
     const pointsText = `${user.points} ${getPointsWord(user.points)}`;
-    ctx.fillText(pointsText, 620, yPosition + 25);
+    ctx.fillText(pointsText, 620, yPosition + 5);
 
     yPosition += lineHeight;
   }
