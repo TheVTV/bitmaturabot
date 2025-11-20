@@ -176,7 +176,7 @@ async function generateRankingImage(
         const medalImg = medalImages[medalType];
       
         // Rysowanie obrazka medalu
-        ctx.drawImage(medalImg, 130, yPosition, 40, 40); 
+        ctx.drawImage(medalImg, 130, yPosition + 25, 31, 40); 
       } else {
         // Pozostałe pozycje (tekst 4., 5., 6., ...)
         ctx.fillStyle = "#ffffff";
