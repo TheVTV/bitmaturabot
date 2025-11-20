@@ -193,11 +193,11 @@ function analyzeKolokwia(sheetData, userRowIndex) {
     } else {
       const cellStr = String(testCell).toLowerCase().trim();
       if (cellStr === "nb") {
-        testResult = "❌ Nieobecność";
+        testResult = "⚠ Nieobecność (bez wyniku)";
       } else if (cellStr === "nzal") {
-        testResult = "⭕ Niezaliczony";
+        testResult = "⭕ Niezaliczony: 0%";
       } else {
-        testResult = String(testCell) + " pkt";
+        testResult = String(testCell) + "  %";
       }
     }
 
@@ -318,7 +318,7 @@ function analyzePodsumowanie(sheetData, userRowIndex) {
   const skopulCell = userRow[53];
   if (skopulCell !== undefined && skopulCell !== null) {
     const skopulValue = parseFloat(String(skopulCell).replace(",", ".")) || 0;
-    podsumowanie.skopul = `${skopulValue} / 30`;
+    podsumowanie.skopul = `${skopulValue} / 40`;
     podsumowanie.skopulNumeric = skopulValue;
   }
 
@@ -327,7 +327,7 @@ function analyzePodsumowanie(sheetData, userRowIndex) {
   if (kolokwiaCell !== undefined && kolokwiaCell !== null) {
     const kolokwiaValue =
       parseFloat(String(kolokwiaCell).replace(",", ".")) || 0;
-    podsumowanie.kolokwia = `${kolokwiaValue} / 25`;
+    podsumowanie.kolokwia = `${kolokwiaValue} / 20`;
     podsumowanie.kolokwiaNumeric = kolokwiaValue;
   }
 
@@ -344,7 +344,7 @@ function analyzePodsumowanie(sheetData, userRowIndex) {
   const maturyCell = userRow[56];
   if (maturyCell !== undefined && maturyCell !== null) {
     const maturyValue = parseFloat(String(maturyCell).replace(",", ".")) || 0;
-    podsumowanie.matury = `${maturyValue} / 25`;
+    podsumowanie.matury = `${maturyValue} / 20`;
     podsumowanie.maturyNumeric = maturyValue;
   }
 
@@ -481,7 +481,7 @@ function createAttendancePage(targetUser, attendanceInfo, sheetData) {
           : "";
 
       embed.addFields({
-        name: "✅ Zwolnieni z zajęć",
+        name: "✅ Zwolnienia z zajęć",
         value: datesList + moreText,
         inline: false,
       });
@@ -489,9 +489,9 @@ function createAttendancePage(targetUser, attendanceInfo, sheetData) {
 
     // Dodaj sekcję plusów
     const formattedPlusPoints =
-      attendanceInfo.plusPoints % 1 === 0
+      attendanceInfo.plusPoints % 2 === 0
         ? attendanceInfo.plusPoints.toString()
-        : attendanceInfo.plusPoints.toFixed(1);
+        : attendanceInfo.plusPoints.toFixed(2);
     const plusText = `${formattedPlusPoints} / 20`;
     let achievementText = "";
 
@@ -538,10 +538,10 @@ function createSkopulPage(targetUser, skopulInfo, sheetData) {
       skopulInfo.maxBasicPoints > 0
         ? `**Maksymalny wynik za zadania bazowe:** ${skopulInfo.maxBasicPoints} pkt\n`
         : "";
-    const totalResultText = `${skopulInfo.percentage} (${skopulInfo.skopulPoints} / 30)`;
+    const totalResultText = `${skopulInfo.percentage} (${skopulInfo.skopulPoints} / 40)`;
 
     let achievementText = "";
-    if (skopulInfo.percentageNumeric >= 133.3333) {
+    if (skopulInfo.percentageNumeric >= 120) {
       achievementText =
         "\n\n✅ Podstawowy cel osiągnięty!\n🏆 Maksymalny wynik za Szkopuła osiągnięty!";
     } else if (skopulInfo.percentageNumeric >= 100) {
@@ -605,7 +605,7 @@ function createKolokwiaPage(targetUser, kolokwiaInfo, sheetData) {
       testsText = "Żaden sprawdzian się jeszcze nie odbył.\n";
     }
 
-    const totalResultText = `${kolokwiaInfo.percentage} (${kolokwiaInfo.totalPoints} / 25)`;
+    const totalResultText = `${kolokwiaInfo.percentage} (${kolokwiaInfo.totalPoints} / 20)`;
 
     let achievementText = "";
     if (kolokwiaInfo.percentageNumeric >= 120) {
@@ -668,7 +668,7 @@ function createMaturyPage(targetUser, maturyInfo, sheetData) {
       maturyText = "Brak wyników maturalnych.\n";
     }
 
-    const totalResultText = `${maturyInfo.totalPoints} / 25`;
+    const totalResultText = `${maturyInfo.totalPoints} / 20`;
 
     let achievementText = "";
     if (maturyInfo.hasMaxResult) {
@@ -708,9 +708,9 @@ function calculateTier(podsumowanieInfo) {
 
   // Oblicz procenty składowych
   const aktywnoscPercent = (podsumowanieInfo.aktywnoscNumeric / 20) * 100;
-  const skopulPercent = (podsumowanieInfo.skopulNumeric / 30) * 100;
-  const kolokwiaPercent = (podsumowanieInfo.kolokwiaNumeric / 25) * 100;
-  const maturyPercent = (podsumowanieInfo.maturyNumeric / 25) * 100;
+  const skopulPercent = (podsumowanieInfo.skopulNumeric / 40) * 100;
+  const kolokwiaPercent = (podsumowanieInfo.kolokwiaNumeric / 20) * 100;
+  const maturyPercent = (podsumowanieInfo.maturyNumeric / 20) * 100;
 
   const skladowe = [
     aktywnoscPercent,
@@ -735,7 +735,7 @@ function calculateTier(podsumowanieInfo) {
     if (skladowePonad75 == 3) {
       return {
         tier: "diamentowy",
-        tierText: "💎 Tier Diamentowy",
+        tierText: "💎 Certyfikat Diamentowy",
         color: 0xb9f2ff,
         description: "Wybitne osiągnięcia w większości kategorii!",
       };
@@ -743,7 +743,7 @@ function calculateTier(podsumowanieInfo) {
     if (skladowePonad75 == 4) {
       return {
         tier: "diamentowy",
-        tierText: "💎 Tier Diamentowy",
+        tierText: "💎 Certyfikat Diamentowy",
         color: 0xb9f2ff,
         description: "Wybitne osiągnięcia we wszystkich kategoriach!",
       };
@@ -756,7 +756,7 @@ function calculateTier(podsumowanieInfo) {
     if (skladowePonad50 == 3) {
       return {
         tier: "zloty",
-        tierText: "🥇 Tier Złoty",
+        tierText: "🥇 Certyfikat Złoty",
         color: 0xffd700,
         description: "Bardzo dobre wyniki w większości kategorii!",
       };
@@ -764,7 +764,7 @@ function calculateTier(podsumowanieInfo) {
     if (skladowePonad50 == 4) {
       return {
         tier: "zloty",
-        tierText: "🥇 Tier Złoty",
+        tierText: "🥇 Certyfikat Złoty",
         color: 0xffd700,
         description: "Bardzo dobre wyniki we wszystkich kategoriach!",
       };
@@ -773,11 +773,11 @@ function calculateTier(podsumowanieInfo) {
 
   // Sprawdź tier srebrny (80% frekwencja, 60 pkt, 3+ składowe ≥30%)
   if (frekwencja >= 80 && wynikKoncowy >= 60) {
-    const skladowePonad30 = skladowe.filter((x) => x >= 30).length;
+    const skladowePonad30 = skladowe.filter((x) => x >= 40).length;
     if (skladowePonad30 == 3) {
       return {
         tier: "srebrny",
-        tierText: "🥈 Tier Srebrny",
+        tierText: "🥈 Certyfikat Srebrny",
         color: 0xc0c0c0,
         description: "Solidne wyniki w większości kategorii!",
       };
@@ -785,7 +785,7 @@ function calculateTier(podsumowanieInfo) {
     if (skladowePonad30 == 4) {
       return {
         tier: "srebrny",
-        tierText: "🥈 Tier Srebrny",
+        tierText: "🥈 Certyfikat Srebrny",
         color: 0xc0c0c0,
         description: "Solidne wyniki we wszystkich kategoriach!",
       };
@@ -796,7 +796,7 @@ function calculateTier(podsumowanieInfo) {
   if (frekwencja >= 80) {
     return {
       tier: "podstawowy",
-      tierText: "🥉 Tier Podstawowy",
+      tierText: "🥉 Certyfikat Sumiennego Uczestnictwa",
       color: 0xcd7f32,
       description: "Podstawowe wymagania spełnione!",
     };
@@ -804,7 +804,7 @@ function calculateTier(podsumowanieInfo) {
 
   return {
     tier: "brak_kwalifikacji",
-    tierText: "❌ Brak kwalifikacji do tieru",
+    tierText: "❌ Brak kwalifikacji do certyfikatu",
     color: 0x95a5a6,
     reason: "Niewystarczające wyniki",
   };
