@@ -90,6 +90,13 @@ async function generateRankingImage(
     ctx.fillRect(0, 0, 700, 900);
   }
 
+  // Medale
+  const medalImages = {
+  gold: await loadImage(path.join(__dirname, "..", "assets", "medal_gold.png")),
+  silver: await loadImage(path.join(__dirname, "..", "assets", "medal_silver.png")),
+  bronze: await loadImage(path.join(__dirname, "..", "assets", "medal_bronze.png")),
+  };
+
   // Subtelna ramka
   // ctx.strokeStyle = "rgba(255, 255, 255, 0.3)";
   // ctx.lineWidth = 4;
@@ -104,10 +111,10 @@ async function generateRankingImage(
   ctx.shadowBlur = 6;
   ctx.shadowOffsetX = 3;
   ctx.shadowOffsetY = 3;
-  ctx.fillText("Ranking Punktów", 350, 50);
+  ctx.fillText("Ranking Kaczki", 350, 50);
 
   // Lista użytkowników
-  const medals = ["🥇", "🥈", "🥉"];
+  const medals = ["1.", "2.", "3."];
   let yPosition = 150;
   const lineHeight = 70;
 
@@ -162,16 +169,33 @@ async function generateRankingImage(
     }
 
     // Pozycja/medal
-    const medal = medals[i] || `${position}.`;
-    ctx.fillStyle = position <= 3 ? "#FFD700" : "#ffffff";
-    ctx.font = "bold 32px Inter, Arial, sans-serif";
-    ctx.textAlign = "left";
-    ctx.textBaseline = "middle";
-    ctx.shadowColor = "rgba(0, 0, 0, 0.8)";
-    ctx.shadowBlur = 4;
-    ctx.shadowOffsetX = 2;
-    ctx.shadowOffsetY = 2;
-    ctx.fillText(medal, 130, yPosition + 25);
+    try {
+      // Rysowanie medalu (dla top 3)
+      if (i === 0 || i === 1 || i === 2) {
+        const medalType = i === 0 ? "gold" : i === 1 ? "silver" : "bronze";
+        const medalImg = medalImages[medalType];
+      
+        // Rysowanie obrazka medalu
+        ctx.drawImage(medalImg, 130, yPosition, 40, 40); 
+      } else {
+        // Pozostałe pozycje (tekst 4., 5., 6., ...)
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 28px Inter, Arial, sans-serif";
+        ctx.textAlign = "left";
+        ctx.fillText(`${position}.`, 130, yPosition + 25);
+      }
+    } catch (error) {
+      const medal = medals[i] || `${position}.`;
+      ctx.fillStyle = position <= 3 ? "#FFD700" : "#ffffff";
+      ctx.font = "bold 32px Inter, Arial, sans-serif";
+      ctx.textAlign = "left";
+      ctx.textBaseline = "middle";
+      ctx.shadowColor = "rgba(0, 0, 0, 0.8)";
+      ctx.shadowBlur = 4;
+      ctx.shadowOffsetX = 2;
+      ctx.shadowOffsetY = 2;
+      ctx.fillText(medal, 130, yPosition + 25);
+    }
 
     // Nazwa użytkownika
     ctx.fillStyle = "#ffffff";
@@ -194,7 +218,7 @@ async function generateRankingImage(
     ctx.fillText(shortName, 200, yPosition + 25);
 
     // Punkty
-    ctx.fillStyle = "#e0e0e0";
+    ctx.fillStyle = "#cceeffff";
     ctx.font = "bold 24px Inter, Arial, sans-serif";
     ctx.textAlign = "right";
     const pointsText = `${user.points} ${getPointsWord(user.points)}`;
@@ -245,7 +269,7 @@ async function generateRankingImage(
 module.exports = {
   data: new SlashCommandBuilder()
     .setName("ranking")
-    .setDescription("Wyświetl ranking punktów (top 10)")
+    .setDescription("Wyświetl ogólnokursowy ranking Kaczki (top 10)")
     .setContexts([0]),
 
   async execute(interaction) {
