@@ -65,7 +65,7 @@ async function generatePointsImage(user, points, rank, member) {
 
   try {
     // Załaduj obraz tła
-    const bgPath = path.join(__dirname, "..", "assets", "bgpoints.png");
+    const bgPath = path.join(__dirname, "..", "assets", "bm_pts_new.png");
     const backgroundImage = await loadImage(bgPath);
 
     // Narysuj tło - dopasuj do rozmiaru canvas
