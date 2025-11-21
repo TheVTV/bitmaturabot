@@ -222,7 +222,7 @@ async function generateRankingImage(
     ctx.font = "bold 24px Inter, Arial, sans-serif";
     ctx.textAlign = "right";
     const pointsText = `${user.points} ${getPointsWord(user.points)}`;
-    ctx.fillText(pointsText, 620, yPosition + 10);
+    ctx.fillText(pointsText, 620, yPosition + 12);
 
     yPosition += lineHeight;
   }
