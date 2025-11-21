@@ -248,7 +248,7 @@ function analyzeMatury(sheetData, userRowIndex) {
   const matura1Cell = userRow[50];
   if (matura1Cell !== undefined && matura1Cell !== null && matura1Cell !== "") {
     let percentageText = String(matura1Cell);
-    if (!percentageText.includes("%")) {
+    if (!percentageText.includes("%") && /^\d+$/.test(percentageText)) {
       percentageText += "%";
     }
     matury.matura1 = percentageText;
@@ -258,7 +258,7 @@ function analyzeMatury(sheetData, userRowIndex) {
   const matura2Cell = userRow[51];
   if (matura2Cell !== undefined && matura2Cell !== null && matura2Cell !== "") {
     let percentageText = String(matura2Cell);
-    if (!percentageText.includes("%")) {
+    if (!percentageText.includes("%") && /^\d+$/.test(percentageText)) {
       percentageText += "%";
     }
     matury.matura2 = percentageText;
@@ -367,7 +367,7 @@ function createBasicInfoPage(userData, targetUser, targetMember, sheetData) {
   if (sheetData && sheetData[20]) {
     const teacherFullName = sheetData[20][0] || "";
     if (teacherFullName) {
-      teacherInfo = teacherFullName.trim();
+      teacherInfo = teacherFullName;//.trim();
     }
   }
 
