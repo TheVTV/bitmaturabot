@@ -65,14 +65,14 @@ module.exports = {
       // Sprawdź czy osiągnięto limit i barka nie została zaśpiewana
       if (result.atLimit) {
         const limitEmbed = new EmbedBuilder()
-          .setTitle("🚫 Limit pogłaszeń osiągnięty!")
+          .setTitle("😴 Krówcia odpoczywa!")
           .setDescription(
-            `Krówcia osiągnęła maksymalny limit pogłaszeń! 🐄\n\n` +
+            `Głaskanie Krówci jest chwilowo wyłączone! 🐄\n\n` +
               `**Aktualna liczba pogłaszeń:** ${result.totalPets}\n` +
               `**Twoje pogłaskania:** ${result.userPets} ${getTimesWord(
                 result.userPets
               )}\n\n` +
-              `Żeby kontynuować głaskanie, ktoś musi zaśpiewać **Barkę** na wykładzie! 🎤`
+              `Krówcia wkrótce się obudzi, teraz natomiast śni o swoim najlepszym przyjacielu...`
           )
           .setColor("#8B0000")
           .setTimestamp();
